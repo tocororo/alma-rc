@@ -3,12 +3,19 @@ import logging
 import time  # <-- Importamos la librería time
 from sickle import Sickle
 from datetime import datetime
+import requests
+from lxml import html
+import urllib.parse
+
+def get_agent():
+    return {'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:64.0) Gecko/20100101 Firefox/64.0'}
 
 # Configuración
 OAI_ENDPOINT = "https://rc.upr.edu.cu/oai/request"  # Reemplaza con tu URL
 OUTPUT_DIR = "metadatos_dspace"
 LOG_FILE = "harvest.log"
 DELAY_SECONDS = 3  # Espera 3 segundos entre documentos
+PREFIX_URL = "https://rc.upr.edu.cu/handle/DICT/"
 
 # Configurar logging (terminal + archivo)
 logging.basicConfig(
@@ -20,6 +27,80 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+
+def get_urls_download_dspace(url):
+    
+    import urllib3
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    
+    sess = requests.Session()
+    sess.headers.update(get_agent())
+    sess.verify = False
+    timeout = 30
+    cont = 0
+    print(cont,"COUNTTTTT")
+    
+    dictionary = {}
+    
+    response = sess.get(url, timeout = timeout)
+    doc1 = html.fromstring(response.text)
+    element = doc1.xpath('//div[@class="panel panel-info"]//a')
+    parsed_url = urllib.parse.urlparse(url)
+    url_download = ''
+    url_mod = url.replace("handle","bitstream")
+    url_dom = parsed_url.scheme +'://'+parsed_url.netloc
+    
+    for e in element:
+        if(e.get('href')):
+            url_href = url_dom + e.get('href')
+            if(url_mod in str(url_href) and url_download != url_href):
+                print(e.get('href'), "references")
+                
+                url_download = url_href
+                dictionary['download'+str(cont)] = url_download
+                cont = cont+1
+    return dictionary
+
+def get_article_download_dspace(dictionary, save_dir):
+    
+    import urllib3
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+    timeout = 30
+    ext = ''
+    dir_open = save_dir + '/'
+    cont=0
+    os.makedirs(save_dir, exist_ok=True)
+    for key in dictionary:
+        response = requests.get(dictionary[key], verify = False, timeout = timeout)
+        #print('-------------',dictionary[key])
+        #print(urllib.parse.urlparse(dictionary[key]))
+        #print(response.headers)
+        allowed = ['application/pdf', 'text/html']
+        if(response.text != ''):
+            if('Content-Disposition' in response.headers):
+                content_disposition = response.headers['Content-Disposition']
+                indice_1 = content_disposition.index('"') #obtenemos la posición del primer carácter "
+                indice_2 = content_disposition.rfind('"') #obtenemos la posición del ultimo carácter "
+                filename = content_disposition[indice_1 + 1:indice_2]
+            else:
+                #url_part = urllib.parse.urlparse(dictionary[key]).path
+                #url_filename = url_part.replace("%20"," ")
+                url_filename = "'" + dictionary[key] + "'"
+                print(url_filename)
+                indice_1 = url_filename.rfind('/') #obtenemos la posición del primer carácter "
+                indice_2 = url_filename.rfind("'") #obtenemos la posición del ultimo carácter "
+                filename = url_filename[indice_1 + 1 : indice_2]
+
+            export_file = open(dir_open + filename, 'wb')
+            export_file.write(response.content)
+            export_file.close()
+        cont = cont+1
+    return 'ok'
+
+def get_record_files(url, save_dir):
+    res = get_urls_download_dspace(url)
+    get_article_download_dspace(res, save_dir)
 
 def harvest_all_metadata():
     sickle = Sickle(OAI_ENDPOINT)
@@ -36,6 +117,8 @@ def harvest_all_metadata():
         total_docs += 1
         doc_dir = os.path.join(OUTPUT_DIR, doc_id)
         os.makedirs(doc_dir, exist_ok=True)
+        article_dir = os.path.join(doc_dir, "articles")
+        os.makedirs(article_dir, exist_ok=True)
 
         logger.info(f"\nProcesando documento: {doc_id}")
         failed_formats = []
@@ -49,6 +132,8 @@ def harvest_all_metadata():
             except Exception as e:
                 logger.error(f"  - {fmt}: Error ({str(e)})")
                 failed_formats.append(fmt)
+        
+        get_record_files("https://rc.upr.edu.cu/handle/" + str(doc_id), article_dir)
 
         if total_docs % 10 == 0:  # Cada 10 documentos
             logger.warning(f"Pausa de {DELAY_SECONDS} segundos...")
