@@ -6,7 +6,7 @@ from datetime import datetime
 
 # Configuración
 OAI_ENDPOINT = "https://rc.upr.edu.cu/oai/request"  # Reemplaza con tu URL
-OUTPUT_DIR = "metadatos_dspace"
+OUTPUT_DIR = ".data/metadatos_dspace"
 LOG_FILE = "harvest.log"
 DELAY_SECONDS = 3  # Espera 3 segundos entre documentos
 

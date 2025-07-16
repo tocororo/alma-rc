@@ -1,0 +1,259 @@
+2025-07-16 12:29:19,611 - INFO - Formatos detectados: ['uketd_dc', 'qdc', 'didl', 'mods', 'ore', 'mets', 'oai_dc', 'rdf', 'marc', 'xoai', 'dim', 'etdms']
+2025-07-16 12:29:19,639 - INFO - 
+Procesando documento: DICT/2684
+2025-07-16 12:29:19,655 - ERROR -   - uketd_dc: Error (Cannot disseminate item with the given format)
+2025-07-16 12:29:19,684 - INFO -   - qdc: OK
+2025-07-16 12:29:19,718 - INFO -   - didl: OK
+2025-07-16 12:29:19,745 - INFO -   - mods: OK
+2025-07-16 12:29:19,797 - INFO -   - ore: OK
+2025-07-16 12:29:19,836 - INFO -   - mets: OK
+2025-07-16 12:29:19,885 - INFO -   - oai_dc: OK
+2025-07-16 12:29:19,912 - INFO -   - rdf: OK
+2025-07-16 12:29:19,939 - INFO -   - marc: OK
+2025-07-16 12:29:19,971 - INFO -   - xoai: OK
+2025-07-16 12:29:19,994 - INFO -   - dim: OK
+2025-07-16 12:29:20,466 - INFO -   - etdms: OK
+2025-07-16 12:29:20,467 - INFO - 
+Procesando documento: DICT/2339
+2025-07-16 12:29:20,512 - ERROR -   - uketd_dc: Error (Cannot disseminate item with the given format)
+2025-07-16 12:29:20,539 - INFO -   - qdc: OK
+2025-07-16 12:29:20,569 - INFO -   - didl: OK
+2025-07-16 12:29:20,592 - INFO -   - mods: OK
+2025-07-16 12:29:20,616 - INFO -   - ore: OK
+2025-07-16 12:29:20,646 - INFO -   - mets: OK
+2025-07-16 12:29:20,668 - INFO -   - oai_dc: OK
+2025-07-16 12:29:20,692 - INFO -   - rdf: OK
+2025-07-16 12:29:20,718 - INFO -   - marc: OK
+2025-07-16 12:29:20,751 - INFO -   - xoai: OK
+2025-07-16 12:29:20,780 - INFO -   - dim: OK
+2025-07-16 12:29:20,816 - INFO -   - etdms: OK
+2025-07-16 12:29:20,816 - INFO - 
+Procesando documento: DICT/2725
+2025-07-16 12:29:20,842 - ERROR -   - uketd_dc: Error (Cannot disseminate item with the given format)
+2025-07-16 12:29:20,870 - INFO -   - qdc: OK
+2025-07-16 12:29:20,898 - INFO -   - didl: OK
+2025-07-16 12:29:20,928 - INFO -   - mods: OK
+2025-07-16 12:29:20,958 - INFO -   - ore: OK
+2025-07-16 12:29:20,996 - INFO -   - mets: OK
+2025-07-16 12:29:21,028 - INFO -   - oai_dc: OK
+2025-07-16 12:29:21,058 - INFO -   - rdf: OK
+2025-07-16 12:29:21,084 - INFO -   - marc: OK
+2025-07-16 12:29:21,116 - INFO -   - xoai: OK
+2025-07-16 12:29:21,148 - INFO -   - dim: OK
+2025-07-16 12:29:21,173 - INFO -   - etdms: OK
+2025-07-16 12:29:21,173 - INFO - 
+Procesando documento: DICT/2641
+2025-07-16 12:29:21,204 - INFO -   - uketd_dc: OK
+2025-07-16 12:29:21,229 - INFO -   - qdc: OK
+2025-07-16 12:29:21,252 - INFO -   - didl: OK
+2025-07-16 12:29:21,274 - INFO -   - mods: OK
+2025-07-16 12:29:21,296 - INFO -   - ore: OK
+2025-07-16 12:29:21,322 - INFO -   - mets: OK
+2025-07-16 12:29:21,345 - INFO -   - oai_dc: OK
+2025-07-16 12:29:21,367 - INFO -   - rdf: OK
+2025-07-16 12:29:21,390 - INFO -   - marc: OK
+2025-07-16 12:29:21,419 - INFO -   - xoai: OK
+2025-07-16 12:29:21,441 - INFO -   - dim: OK
+2025-07-16 12:29:21,468 - INFO -   - etdms: OK
+2025-07-16 12:29:21,469 - INFO - 
+Procesando documento: DICT/2775
+2025-07-16 12:29:21,512 - ERROR -   - uketd_dc: Error (Cannot disseminate item with the given format)
+2025-07-16 12:29:21,541 - INFO -   - qdc: OK
+2025-07-16 12:29:21,569 - INFO -   - didl: OK
+2025-07-16 12:29:21,596 - INFO -   - mods: OK
+2025-07-16 12:29:21,625 - INFO -   - ore: OK
+2025-07-16 12:29:21,658 - INFO -   - mets: OK
+2025-07-16 12:29:21,684 - INFO -   - oai_dc: OK
+2025-07-16 12:29:21,710 - INFO -   - rdf: OK
+2025-07-16 12:29:21,737 - INFO -   - marc: OK
+2025-07-16 12:29:21,772 - INFO -   - xoai: OK
+2025-07-16 12:29:22,314 - INFO -   - dim: OK
+2025-07-16 12:29:22,343 - INFO -   - etdms: OK
+2025-07-16 12:29:22,343 - INFO - 
+Procesando documento: DICT/2712
+2025-07-16 12:29:22,368 - ERROR -   - uketd_dc: Error (Cannot disseminate item with the given format)
+2025-07-16 12:29:22,395 - INFO -   - qdc: OK
+2025-07-16 12:29:22,423 - INFO -   - didl: OK
+2025-07-16 12:29:22,471 - INFO -   - mods: OK
+2025-07-16 12:29:22,499 - INFO -   - ore: OK
+2025-07-16 12:29:22,532 - INFO -   - mets: OK
+2025-07-16 12:29:22,560 - INFO -   - oai_dc: OK
+2025-07-16 12:29:22,586 - INFO -   - rdf: OK
+2025-07-16 12:29:22,613 - INFO -   - marc: OK
+2025-07-16 12:29:22,646 - INFO -   - xoai: OK
+2025-07-16 12:29:22,677 - INFO -   - dim: OK
+2025-07-16 12:29:22,701 - INFO -   - etdms: OK
+2025-07-16 12:29:22,702 - INFO - 
+Procesando documento: DICT/2576
+2025-07-16 12:29:22,720 - ERROR -   - uketd_dc: Error (Cannot disseminate item with the given format)
+2025-07-16 12:29:22,746 - INFO -   - qdc: OK
+2025-07-16 12:29:22,776 - INFO -   - didl: OK
+2025-07-16 12:29:22,804 - INFO -   - mods: OK
+2025-07-16 12:29:22,835 - INFO -   - ore: OK
+2025-07-16 12:29:22,874 - INFO -   - mets: OK
+2025-07-16 12:29:22,900 - INFO -   - oai_dc: OK
+2025-07-16 12:29:22,924 - INFO -   - rdf: OK
+2025-07-16 12:29:22,949 - INFO -   - marc: OK
+2025-07-16 12:29:22,979 - INFO -   - xoai: OK
+2025-07-16 12:29:23,010 - INFO -   - dim: OK
+2025-07-16 12:29:23,038 - INFO -   - etdms: OK
+2025-07-16 12:29:23,038 - INFO - 
+Procesando documento: DICT/2588
+2025-07-16 12:29:23,061 - ERROR -   - uketd_dc: Error (Cannot disseminate item with the given format)
+2025-07-16 12:29:23,091 - INFO -   - qdc: OK
+2025-07-16 12:29:23,118 - INFO -   - didl: OK
+2025-07-16 12:29:23,146 - INFO -   - mods: OK
+2025-07-16 12:29:23,177 - INFO -   - ore: OK
+2025-07-16 12:29:23,217 - INFO -   - mets: OK
+2025-07-16 12:29:23,245 - INFO -   - oai_dc: OK
+2025-07-16 12:29:23,272 - INFO -   - rdf: OK
+2025-07-16 12:29:23,302 - INFO -   - marc: OK
+2025-07-16 12:29:23,336 - INFO -   - xoai: OK
+2025-07-16 12:29:23,368 - INFO -   - dim: OK
+2025-07-16 12:29:23,394 - INFO -   - etdms: OK
+2025-07-16 12:29:23,395 - INFO - 
+Procesando documento: DICT/2583
+2025-07-16 12:29:23,422 - ERROR -   - uketd_dc: Error (Cannot disseminate item with the given format)
+2025-07-16 12:29:23,454 - INFO -   - qdc: OK
+2025-07-16 12:29:23,485 - INFO -   - didl: OK
+2025-07-16 12:29:23,513 - INFO -   - mods: OK
+2025-07-16 12:29:23,538 - INFO -   - ore: OK
+2025-07-16 12:29:23,568 - INFO -   - mets: OK
+2025-07-16 12:29:23,596 - INFO -   - oai_dc: OK
+2025-07-16 12:29:24,028 - INFO -   - rdf: OK
+2025-07-16 12:29:24,051 - INFO -   - marc: OK
+2025-07-16 12:29:24,079 - INFO -   - xoai: OK
+2025-07-16 12:29:24,117 - INFO -   - dim: OK
+2025-07-16 12:29:24,146 - INFO -   - etdms: OK
+2025-07-16 12:29:24,146 - INFO - 
+Procesando documento: DICT/2595
+2025-07-16 12:29:24,173 - ERROR -   - uketd_dc: Error (Cannot disseminate item with the given format)
+2025-07-16 12:29:24,204 - INFO -   - qdc: OK
+2025-07-16 12:29:24,233 - INFO -   - didl: OK
+2025-07-16 12:29:24,257 - INFO -   - mods: OK
+2025-07-16 12:29:24,284 - INFO -   - ore: OK
+2025-07-16 12:29:24,318 - INFO -   - mets: OK
+2025-07-16 12:29:24,351 - INFO -   - oai_dc: OK
+2025-07-16 12:29:24,380 - INFO -   - rdf: OK
+2025-07-16 12:29:29,432 - INFO -   - marc: OK
+2025-07-16 12:29:29,467 - INFO -   - xoai: OK
+2025-07-16 12:29:29,500 - INFO -   - dim: OK
+2025-07-16 12:29:29,530 - INFO -   - etdms: OK
+2025-07-16 12:29:29,531 - WARNING - Pausa de 3 segundos...
+2025-07-16 12:29:32,531 - INFO - 
+Procesando documento: DICT/2700
+2025-07-16 12:29:32,575 - INFO -   - uketd_dc: OK
+2025-07-16 12:29:32,604 - INFO -   - qdc: OK
+2025-07-16 12:29:32,626 - INFO -   - didl: OK
+2025-07-16 12:29:32,649 - INFO -   - mods: OK
+2025-07-16 12:29:32,681 - INFO -   - ore: OK
+2025-07-16 12:29:32,717 - INFO -   - mets: OK
+2025-07-16 12:29:32,743 - INFO -   - oai_dc: OK
+2025-07-16 12:29:32,775 - INFO -   - rdf: OK
+2025-07-16 12:29:33,427 - INFO -   - marc: OK
+2025-07-16 12:29:33,480 - INFO -   - xoai: OK
+2025-07-16 12:29:33,503 - INFO -   - dim: OK
+2025-07-16 12:29:33,578 - INFO -   - etdms: OK
+2025-07-16 12:29:33,579 - INFO - 
+Procesando documento: DICT/2653
+2025-07-16 12:29:34,019 - ERROR -   - uketd_dc: Error (The given id does not exist)
+2025-07-16 12:29:34,063 - ERROR -   - qdc: Error (The given id does not exist)
+2025-07-16 12:29:34,159 - ERROR -   - didl: Error (The given id does not exist)
+2025-07-16 12:29:34,206 - ERROR -   - mods: Error (The given id does not exist)
+2025-07-16 12:29:34,276 - ERROR -   - ore: Error (The given id does not exist)
+2025-07-16 12:29:34,333 - ERROR -   - mets: Error (The given id does not exist)
+2025-07-16 12:29:34,377 - ERROR -   - oai_dc: Error (The given id does not exist)
+2025-07-16 12:29:34,436 - ERROR -   - rdf: Error (The given id does not exist)
+2025-07-16 12:29:34,493 - ERROR -   - marc: Error (The given id does not exist)
+2025-07-16 12:29:34,561 - ERROR -   - xoai: Error (The given id does not exist)
+2025-07-16 12:29:34,619 - ERROR -   - dim: Error (The given id does not exist)
+2025-07-16 12:29:34,658 - ERROR -   - etdms: Error (The given id does not exist)
+2025-07-16 12:29:34,659 - INFO - 
+Procesando documento: DICT/2667
+2025-07-16 12:29:34,702 - ERROR -   - uketd_dc: Error (Cannot disseminate item with the given format)
+2025-07-16 12:29:34,765 - INFO -   - qdc: OK
+2025-07-16 12:29:34,800 - INFO -   - didl: OK
+2025-07-16 12:29:34,861 - INFO -   - mods: OK
+2025-07-16 12:29:34,944 - INFO -   - ore: OK
+2025-07-16 12:29:34,997 - INFO -   - mets: OK
+2025-07-16 12:29:35,054 - INFO -   - oai_dc: OK
+2025-07-16 12:29:35,301 - INFO -   - rdf: OK
+2025-07-16 12:29:35,332 - INFO -   - marc: OK
+2025-07-16 12:29:35,382 - INFO -   - xoai: OK
+2025-07-16 12:29:35,438 - INFO -   - dim: OK
+2025-07-16 12:29:35,470 - INFO -   - etdms: OK
+2025-07-16 12:29:35,470 - INFO - 
+Procesando documento: DICT/2568
+2025-07-16 12:29:35,521 - ERROR -   - uketd_dc: Error (Cannot disseminate item with the given format)
+2025-07-16 12:29:35,553 - INFO -   - qdc: OK
+2025-07-16 12:29:35,589 - INFO -   - didl: OK
+2025-07-16 12:29:35,627 - INFO -   - mods: OK
+2025-07-16 12:29:35,692 - INFO -   - ore: OK
+2025-07-16 12:29:35,746 - INFO -   - mets: OK
+2025-07-16 12:29:35,790 - INFO -   - oai_dc: OK
+2025-07-16 12:29:35,830 - INFO -   - rdf: OK
+2025-07-16 12:29:35,878 - INFO -   - marc: OK
+2025-07-16 12:29:35,929 - INFO -   - xoai: OK
+2025-07-16 12:29:35,977 - INFO -   - dim: OK
+2025-07-16 12:30:53,236 - INFO - Formatos detectados: ['uketd_dc', 'qdc', 'didl', 'mods', 'ore', 'mets', 'oai_dc', 'rdf', 'marc', 'xoai', 'dim', 'etdms']
+2025-07-16 12:30:53,274 - INFO - 
+Procesando documento: DICT/2684
+2025-07-16 12:30:53,294 - ERROR -   - uketd_dc: Error (Cannot disseminate item with the given format)
+2025-07-16 12:30:53,324 - INFO -   - qdc: OK
+2025-07-16 12:30:53,355 - INFO -   - didl: OK
+2025-07-16 12:30:53,382 - INFO -   - mods: OK
+2025-07-16 12:30:53,410 - INFO -   - ore: OK
+2025-07-16 12:30:53,444 - INFO -   - mets: OK
+2025-07-16 12:30:53,473 - INFO -   - oai_dc: OK
+2025-07-16 12:30:53,502 - INFO -   - rdf: OK
+2025-07-16 12:30:53,527 - INFO -   - marc: OK
+2025-07-16 12:30:53,556 - INFO -   - xoai: OK
+2025-07-16 12:30:53,580 - INFO -   - dim: OK
+2025-07-16 12:30:53,603 - INFO -   - etdms: OK
+2025-07-16 12:30:53,603 - INFO - 
+Procesando documento: DICT/2339
+2025-07-16 12:30:53,627 - ERROR -   - uketd_dc: Error (Cannot disseminate item with the given format)
+2025-07-16 12:30:53,654 - INFO -   - qdc: OK
+2025-07-16 12:30:53,682 - INFO -   - didl: OK
+2025-07-16 12:30:53,709 - INFO -   - mods: OK
+2025-07-16 12:30:53,739 - INFO -   - ore: OK
+2025-07-16 12:30:53,773 - INFO -   - mets: OK
+2025-07-16 12:30:53,800 - INFO -   - oai_dc: OK
+2025-07-16 12:30:53,827 - INFO -   - rdf: OK
+2025-07-16 12:30:53,859 - INFO -   - marc: OK
+2025-07-16 12:30:53,889 - INFO -   - xoai: OK
+2025-07-16 12:30:53,912 - INFO -   - dim: OK
+2025-07-16 12:30:53,933 - INFO -   - etdms: OK
+2025-07-16 12:30:53,933 - INFO - 
+Procesando documento: DICT/2725
+2025-07-16 12:30:53,960 - ERROR -   - uketd_dc: Error (Cannot disseminate item with the given format)
+2025-07-16 12:30:53,989 - INFO -   - qdc: OK
+2025-07-16 12:30:54,021 - INFO -   - didl: OK
+2025-07-16 12:30:54,048 - INFO -   - mods: OK
+2025-07-16 12:30:54,080 - INFO -   - ore: OK
+2025-07-16 12:30:54,110 - INFO -   - mets: OK
+2025-07-16 12:30:54,135 - INFO -   - oai_dc: OK
+2025-07-16 12:30:54,166 - INFO -   - rdf: OK
+2025-07-16 12:30:54,192 - INFO -   - marc: OK
+2025-07-16 12:30:54,227 - INFO -   - xoai: OK
+2025-07-16 12:30:54,258 - INFO -   - dim: OK
+2025-07-16 12:30:54,285 - INFO -   - etdms: OK
+2025-07-16 12:30:54,286 - INFO - 
+Procesando documento: DICT/2641
+2025-07-16 12:30:54,315 - INFO -   - uketd_dc: OK
+2025-07-16 12:30:54,345 - INFO -   - qdc: OK
+2025-07-16 12:30:54,372 - INFO -   - didl: OK
+2025-07-16 12:30:54,402 - INFO -   - mods: OK
+2025-07-16 12:30:54,431 - INFO -   - ore: OK
+2025-07-16 12:30:54,464 - INFO -   - mets: OK
+2025-07-16 12:30:54,493 - INFO -   - oai_dc: OK
+2025-07-16 12:30:54,518 - INFO -   - rdf: OK
+2025-07-16 12:30:54,545 - INFO -   - marc: OK
+2025-07-16 12:30:54,579 - INFO -   - xoai: OK
+2025-07-16 12:30:54,607 - INFO -   - dim: OK
+2025-07-16 12:30:54,633 - INFO -   - etdms: OK
+2025-07-16 12:30:54,633 - INFO - 
+Procesando documento: DICT/2775
+2025-07-16 12:30:55,258 - ERROR -   - uketd_dc: Error (Cannot disseminate item with the given format)
+2025-07-16 12:30:55,298 - INFO -   - qdc: OK
+2025-07-16 12:30:55,326 - INFO -   - didl: OK
