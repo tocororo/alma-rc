@@ -19,6 +19,7 @@ https://alma.upr.edu.cu/api/vocabularies/resourcetypes
 ## invenio data model:
 
 https://inveniordm.docs.cern.ch/reference/metadata/
+https://github.com/inveniosoftware/invenio-rdm-records/blob/master/invenio_rdm_records/records/jsonschemas/records/record-v6.0.0.json
 
 
 ## Dspace OAI

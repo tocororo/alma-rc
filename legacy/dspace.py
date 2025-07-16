@@ -22,6 +22,10 @@ def get_agent():
 
 def get_urls_download_dspace(url):
 
+    
+    import urllib3
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    
     sess = requests.Session()
     sess.headers.update(get_agent())
     sess.verify = False
@@ -30,21 +34,35 @@ def get_urls_download_dspace(url):
     dictionary = {}
     response = sess.get(url, timeout = timeout)
     doc1 = html.fromstring(response.text)
+    # print(doc1, "documento")
     element = doc1.xpath('//div[@class="panel panel-info"]//a')
+    # print(element, "div")
     parsed_url = urllib.parse.urlparse(url)
+    # print(parsed_url, "url")
     url_download = ''
     url_mod = url.replace("handle","bitstream")
     url_dom = parsed_url.scheme +'://'+parsed_url.netloc
+    # print(url_dom, "url_dom")
     for e in element:
+        # print(e.get('href'), "references")
         if(e.get('href')):
             url_href = url_dom + e.get('href')
+            # print(url_href, "url_ref")
+            # print(url_mod, "url_mod")
             if(url_mod in str(url_href) and url_download != url_href):
+                print(e.get('href'), "references")
+                
                 url_download = url_href
+                # print(url_download, "url_download")
                 dictionary['download'+str(cont)] = url_download
                 cont = cont+1
     return dictionary
 
 def get_article_download_dspace(dictionary, save_dir):
+    
+    import urllib3
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
     timeout = 30
     ext = ''
     dir_open = save_dir + '/'
@@ -80,3 +98,4 @@ def get_record_files(url, save_dir):
     res = get_urls_download_dspace(url)
     get_article_download_dspace(res, save_dir)
 
+get_record_files("https://rc.upr.edu.cu/handle/DICT/2458", '/home/reinier/Trabajo/alma-rc')
