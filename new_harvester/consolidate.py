@@ -1,56 +1,6 @@
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 
-def parse_oai_record(metadata_elements):
-    """Parse all metadata formats and merge into a single dictionary"""
-    result = defaultdict(list)
-    
-    for elem in metadata_elements:
-        # Get the namespace and format from the element
-        namespace = elem.tag.split('}')[0].lstrip('{')
-        format_name = None
-        
-        # Determine which format we're parsing
-        if 'uketd_dc' in namespace:
-            format_name = 'uketd_dc'
-            parse_uketd_dc(elem, result)
-        elif 'dublincore' in namespace or 'purl.org/dc/terms' in namespace:
-            format_name = 'qdc'
-            parse_qdc(elem, result)
-        elif 'mpeg21' in namespace:
-            format_name = 'didl'
-            parse_didl(elem, result)
-        elif 'loc.gov/mods' in namespace:
-            format_name = 'mods'
-            parse_mods(elem, result)
-        elif 'w3.org/2005/Atom' in namespace:
-            format_name = 'ore'
-            parse_ore(elem, result)
-        elif 'loc.gov/METS' in namespace:
-            format_name = 'mets'
-            parse_mets(elem, result)
-        elif 'openarchives.org/OAI/2.0/oai_dc' in namespace:
-            format_name = 'oai_dc'
-            parse_oai_dc(elem, result)
-        elif 'openarchives.org/OAI/2.0/rdf' in namespace:
-            format_name = 'rdf'
-            parse_rdf(elem, result)
-        elif 'loc.gov/MARC21/slim' in namespace:
-            format_name = 'marc'
-            parse_marc(elem, result)
-        elif 'lyncode.com/xoai' in namespace:
-            format_name = 'xoai'
-            parse_xoai(elem, result)
-        elif 'dspace.org/xmlns/dspace/dim' in namespace:
-            format_name = 'dim'
-            parse_dim(elem, result)
-        elif 'ndltd.org/standards/metadata/etdms' in namespace:
-            format_name = 'etdms'
-            parse_etdms(elem, result)
-    
-    # Convert defaultdict to regular dict and consolidate fields
-    return consolidate_fields(dict(result))
-
 def parse_uketd_dc(elem, result):
     """Parse uketh_dc format"""
     ns = {'uketd': 'http://naca.central.cranfield.ac.uk/ethos-oai/2.0/'}
@@ -177,6 +127,58 @@ def consolidate_fields(data_dict):
             consolidated[field] = unique_values
     
     return consolidated
+
+
+
+def parse_oai_record(metadata_elements):
+    """Parse all metadata formats and merge into a single dictionary"""
+    result = defaultdict(list)
+    
+    for elem in metadata_elements:
+        # Get the namespace and format from the element
+        namespace = elem.tag.split('}')[0].lstrip('{')
+        format_name = None
+        
+        # Determine which format we're parsing
+        if 'uketd_dc' in namespace:
+            format_name = 'uketd_dc'
+            parse_uketd_dc(elem, result)
+        elif 'dublincore' in namespace or 'purl.org/dc/terms' in namespace:
+            format_name = 'qdc'
+            parse_qdc(elem, result)
+        elif 'mpeg21' in namespace:
+            format_name = 'didl'
+            parse_didl(elem, result)
+        elif 'loc.gov/mods' in namespace:
+            format_name = 'mods'
+            parse_mods(elem, result)
+        elif 'w3.org/2005/Atom' in namespace:
+            format_name = 'ore'
+            parse_ore(elem, result)
+        elif 'loc.gov/METS' in namespace:
+            format_name = 'mets'
+            parse_mets(elem, result)
+        elif 'openarchives.org/OAI/2.0/oai_dc' in namespace:
+            format_name = 'oai_dc'
+            parse_oai_dc(elem, result)
+        elif 'openarchives.org/OAI/2.0/rdf' in namespace:
+            format_name = 'rdf'
+            parse_rdf(elem, result)
+        elif 'loc.gov/MARC21/slim' in namespace:
+            format_name = 'marc'
+            parse_marc(elem, result)
+        elif 'lyncode.com/xoai' in namespace:
+            format_name = 'xoai'
+            parse_xoai(elem, result)
+        elif 'dspace.org/xmlns/dspace/dim' in namespace:
+            format_name = 'dim'
+            parse_dim(elem, result)
+        elif 'ndltd.org/standards/metadata/etdms' in namespace:
+            format_name = 'etdms'
+            parse_etdms(elem, result)
+    
+    # Convert defaultdict to regular dict and consolidate fields
+    return consolidate_fields(dict(result))
 
 # Example usage:
 # record = parse_oai_record(metadata_elements)

@@ -62,40 +62,83 @@ def get_urls_download_dspace(url):
     return dictionary
 
 def get_article_download_dspace(dictionary, save_dir):
-    
     import urllib3
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
     timeout = 30
-    ext = ''
     dir_open = save_dir + '/'
-    cont=0
+    cont = 0
     os.makedirs(save_dir, exist_ok=True)
+    
     for key in dictionary:
-        response = requests.get(dictionary[key], verify = False, timeout = timeout)
-        #print('-------------',dictionary[key])
-        #print(urllib.parse.urlparse(dictionary[key]))
-        #print(response.headers)
-        allowed = ['application/pdf', 'text/html']
-        if(response.text != ''):
-            if('Content-Disposition' in response.headers):
-                content_disposition = response.headers['Content-Disposition']
-                indice_1 = content_disposition.index('"') #obtenemos la posición del primer carácter "
-                indice_2 = content_disposition.rfind('"') #obtenemos la posición del ultimo carácter "
-                filename = content_disposition[indice_1 + 1:indice_2]
-            else:
-                #url_part = urllib.parse.urlparse(dictionary[key]).path
-                #url_filename = url_part.replace("%20"," ")
-                url_filename = "'" + dictionary[key] + "'"
-                print(url_filename)
-                indice_1 = url_filename.rfind('/') #obtenemos la posición del primer carácter "
-                indice_2 = url_filename.rfind("'") #obtenemos la posición del ultimo carácter "
-                filename = url_filename[indice_1 + 1 : indice_2]
+        try:
+            response = requests.get(dictionary[key], verify=False, timeout=timeout)
+            if response.status_code != 200:
+                continue
 
-            export_file = open(dir_open + filename, 'wb')
-            export_file.write(response.content)
-            export_file.close()
-        cont = cont+1
+            filename = None
+            
+            # Try to get filename from Content-Disposition
+            if 'Content-Disposition' in response.headers:
+                content_disposition = response.headers['Content-Disposition']
+                
+                # Different formats to try:
+                # 1. filename="example.pdf"
+                # 2. filename=example.pdf
+                # 3. attachment; filename="example.pdf"
+                # 4. attachment; filename=example.pdf
+                
+                if 'filename="' in content_disposition:
+                    # Format with quotes
+                    start = content_disposition.index('filename="') + 10
+                    end = content_disposition.index('"', start)
+                    filename = content_disposition[start:end]
+                elif 'filename=' in content_disposition:
+                    # Format without quotes
+                    start = content_disposition.index('filename=') + 9
+                    filename = content_disposition[start:]
+                    # Remove any trailing semicolons or other parameters
+                    if ';' in filename:
+                        filename = filename.split(';')[0]
+            
+            # If filename not found in Content-Disposition, extract from URL
+            if not filename:
+                url_path = urllib.parse.urlparse(dictionary[key]).path
+                filename = os.path.basename(url_path)
+                filename = urllib.parse.unquote(filename)  # Decode URL-encoded characters
+                
+                # If no proper filename in URL, use a default name
+                if not filename or filename == '/':
+                    filename = f"document_{cont}"
+            
+            # Clean up filename (remove any remaining quotes or special characters)
+            filename = filename.replace('"', '').replace("'", "").strip()
+            
+            # Ensure filename has an extension
+            if '.' not in filename:
+                # Try to determine extension from Content-Type
+                if 'Content-Type' in response.headers:
+                    content_type = response.headers['Content-Type']
+                    if 'pdf' in content_type:
+                        filename += '.pdf'
+                    elif 'html' in content_type:
+                        filename += '.html'
+                    elif 'xml' in content_type:
+                        filename += '.xml'
+                    else:
+                        filename += '.bin'
+            
+            # Save the file
+            filepath = os.path.join(dir_open, filename)
+            with open(filepath, 'wb') as export_file:
+                export_file.write(response.content)
+            
+            cont += 1
+            
+        except Exception as e:
+            print(f"Error processing {dictionary[key]}: {str(e)}")
+            continue
+    
     return 'ok'
 
 def get_record_files(url, save_dir):
@@ -117,7 +160,7 @@ def harvest_all_metadata():
         total_docs += 1
         doc_dir = os.path.join(OUTPUT_DIR, doc_id)
         os.makedirs(doc_dir, exist_ok=True)
-        article_dir = os.path.join(doc_dir, "articles")
+        article_dir = os.path.join(doc_dir, "files")
         os.makedirs(article_dir, exist_ok=True)
 
         logger.info(f"\nProcesando documento: {doc_id}")
@@ -133,7 +176,7 @@ def harvest_all_metadata():
                 logger.error(f"  - {fmt}: Error ({str(e)})")
                 failed_formats.append(fmt)
         
-        get_record_files("https://rc.upr.edu.cu/handle/" + str(doc_id), article_dir)
+        get_record_files(f"https://rc.upr.edu.cu/handle/{str(doc_id)}", article_dir)
 
         if total_docs % 10 == 0:  # Cada 10 documentos
             logger.warning(f"Pausa de {DELAY_SECONDS} segundos...")
