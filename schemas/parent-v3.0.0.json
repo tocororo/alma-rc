@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "id": "local://records/parent-v3.0.0.json",
+  "id": "./parent-v3.0.0.json",
   "title": "InvenioRDM Parent Record Schema v3.0.0",
   "type": "object",
   "additionalProperties": false,
@@ -15,13 +15,13 @@
       "type": "string"
     },
 
-    "pid": {"$ref": "local://records/definitions-v1.2.0.json#/internal-pid"},
+    "pid": {"$ref": "./definitions-v1.2.0.json#/internal-pid"},
 
     "pids": {
       "type": "object",
       "description": "External persistent identifiers for the parent record including e.g. OAI-PMH identifier, minted DOIs and more. PIDs are registered in the PIDStore.",
       "additionalProperties": {
-        "$ref": "local://records/definitions-v2.0.0.json#/external-pid"
+        "$ref": "./definitions-v2.0.0.json#/external-pid"
       },
       "propertyNames": {
         "pattern": "^[a-z_-][a-z0-9_-]*$"
@@ -37,7 +37,7 @@
 
         "owned_by": {
           "description": "Owner of the child records.",
-          "$ref": "local://records/definitions-v2.0.0.json#/agent"
+          "$ref": "./definitions-v2.0.0.json#/agent"
         },
 
         "grants": {
@@ -113,11 +113,11 @@
     },
 
     "communities": {
-      "$ref": "local://communities/definitions-v2.0.0.json#/communities"
+      "$ref": "./communities/definitions-v2.0.0.json#/communities"
     },
 
     "review": {
-      "$ref": "local://requests/request-v1.0.0.json"
+      "$ref": "./requests/request-v1.0.0.json"
     },
 
     "permission_flags": {

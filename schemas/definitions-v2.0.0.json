@@ -4,7 +4,7 @@
     "additionalProperties": false,
     "properties": {
       "id": {
-        "$ref": "local://definitions-v1.0.0.json#/identifier"
+        "$ref": "./definitions-v1.0.0.json#/identifier"
       },
       "name": {
         "type": "string"
@@ -32,7 +32,7 @@
     "description": "Type of the date.",
     "properties": {
       "id": {
-        "$ref": "local://definitions-v1.0.0.json#/identifier"
+        "$ref": "./definitions-v1.0.0.json#/identifier"
       }
     }
   },
@@ -52,7 +52,7 @@
     "additionalProperties": false,
     "properties": {
       "identifier": {
-        "$ref": "local://definitions-v1.0.0.json#/identifier"
+        "$ref": "./definitions-v1.0.0.json#/identifier"
       },
       "provider": {
         "description": "The provider of the persistent identifier.",
@@ -256,7 +256,7 @@
     "description": "Identifiers object (keys being scheme, value being the identifier).",
     "type": "object",
     "additionalProperties": {
-      "$ref": "local://definitions-v1.0.0.json#/identifier"
+      "$ref": "./definitions-v1.0.0.json#/identifier"
     }
   },
   "language": {
@@ -264,7 +264,7 @@
     "additionalProperties": false,
     "properties": {
       "id": {
-        "$ref": "local://definitions-v1.0.0.json#/identifier"
+        "$ref": "./definitions-v1.0.0.json#/identifier"
       }
     }
   },
@@ -302,7 +302,7 @@
       "identifiers": {
         "type": "array",
         "items": {
-          "$ref": "local://definitions-v1.0.0.json#/identifiers_with_scheme"
+          "$ref": "./definitions-v1.0.0.json#/identifiers_with_scheme"
         },
         "uniqueItems": true
       }
@@ -314,7 +314,7 @@
     "description": "A relation type.",
     "properties": {
       "id": {
-        "$ref": "local://definitions-v1.0.0.json#/identifier"
+        "$ref": "./definitions-v1.0.0.json#/identifier"
       }
     }
   },
@@ -324,7 +324,7 @@
     "description": "A resource type.",
     "properties": {
       "id": {
-        "$ref": "local://definitions-v1.0.0.json#/identifier"
+        "$ref": "./definitions-v1.0.0.json#/identifier"
       }
     }
   },
@@ -334,7 +334,7 @@
     "additionalProperties": false,
     "properties": {
       "id": {
-        "$ref": "local://definitions-v1.0.0.json#/identifier"
+        "$ref": "./definitions-v1.0.0.json#/identifier"
       }
     }
   },
@@ -344,7 +344,7 @@
     "additionalProperties": false,
     "properties": {
       "id": {
-        "$ref": "local://definitions-v1.0.0.json#/identifier"
+        "$ref": "./definitions-v1.0.0.json#/identifier"
       },
       "subject": {
         "type": "string"
@@ -361,7 +361,7 @@
     "additionalProperties": false,
     "properties": {
       "id": {
-        "$ref": "local://definitions-v1.0.0.json#/identifier"
+        "$ref": "./definitions-v1.0.0.json#/identifier"
       }
     }
   },
@@ -381,7 +381,7 @@
     "description": "Reason for the removal of a record.",
     "properties": {
       "id": {
-        "$ref": "local://definitions-v1.0.0.json#/identifier"
+        "$ref": "./definitions-v1.0.0.json#/identifier"
       }
     }
   }
