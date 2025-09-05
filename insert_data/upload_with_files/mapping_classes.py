@@ -10,7 +10,7 @@ from datetime import date, datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import AnyUrl, BaseModel, Extra, Field, constr
+from pydantic import AnyUrl, BaseModel, Field, constr
 
 
 class Record(Enum):
@@ -25,7 +25,7 @@ class Files(Enum):
 
 class Embargo(BaseModel):
     class Config:
-        extra = Extra.forbid
+        extra = 'forbid'
 
     active: Optional[bool] = Field(
         None, description='Whether or not the embargo is (still) active.'
@@ -41,7 +41,7 @@ class Embargo(BaseModel):
 
 class Access(BaseModel):
     class Config:
-        extra = Extra.forbid
+        extra = 'forbid'
 
     record: Optional[Record] = Field(
         None, description='Record visibility (public or restricted)'
@@ -72,7 +72,7 @@ class Status(Enum):
 
 class InternalPid(BaseModel):
     class Config:
-        extra = Extra.forbid
+        extra = 'forbid'
 
     pk: int = Field(..., description='Primary key of the PID object.')
     status: Status = Field(
@@ -88,7 +88,7 @@ class InternalPid(BaseModel):
 
 class ExternalPid(BaseModel):
     class Config:
-        extra = Extra.forbid
+        extra = 'forbid'
 
     identifier: Optional[Identifier] = None
     provider: Optional[str] = Field(
@@ -101,7 +101,7 @@ class ExternalPid(BaseModel):
 
 class ResourceType(BaseModel):
     class Config:
-        extra = Extra.forbid
+        extra = 'forbid'
 
     id: Optional[Identifier] = None
 
@@ -117,14 +117,14 @@ class NameType(Enum):
 
 class Role(BaseModel):
     class Config:
-        extra = Extra.forbid
+        extra = 'forbid'
 
     id: Optional[Identifier] = None
 
 
 class Affiliation(BaseModel):
     class Config:
-        extra = Extra.forbid
+        extra = 'forbid'
 
     id: Optional[Identifier] = None
     name: Optional[str] = None
@@ -132,21 +132,21 @@ class Affiliation(BaseModel):
 
 class TitleType(BaseModel):
     class Config:
-        extra = Extra.forbid
+        extra = 'forbid'
 
     id: Optional[Identifier] = None
 
 
 class Language(BaseModel):
     class Config:
-        extra = Extra.forbid
+        extra = 'forbid'
 
     id: Optional[Identifier] = None
 
 
 class Subject(BaseModel):
     class Config:
-        extra = Extra.forbid
+        extra = 'forbid'
 
     id: Optional[Identifier] = None
     subject: Optional[str] = None
@@ -154,21 +154,21 @@ class Subject(BaseModel):
 
 class DateType(BaseModel):
     class Config:
-        extra = Extra.forbid
+        extra = 'forbid'
 
     id: Optional[Identifier] = None
 
 
 class RelationType(BaseModel):
     class Config:
-        extra = Extra.forbid
+        extra = 'forbid'
 
     id: Optional[Identifier] = None
 
 
 class DescriptionType(BaseModel):
     class Config:
-        extra = Extra.forbid
+        extra = 'forbid'
 
     id: Optional[str] = None
 
@@ -250,14 +250,14 @@ class GeoJSONGeometry(BaseModel):
 
 class RemovalReason(BaseModel):
     class Config:
-        extra = Extra.forbid
+        extra = 'forbid'
 
     id: Optional[Identifier] = None
 
 
 class User(BaseModel):
     class Config:
-        extra = Extra.forbid
+        extra = 'forbid'
 
     user: Optional[Union[str, int]] = None
 
@@ -268,7 +268,7 @@ class FilesSimple(BaseModel):
 
 class AdditionalTitle(BaseModel):
     class Config:
-        extra = Extra.forbid
+        extra = 'forbid'
 
     title: Optional[str] = Field(None, description='Additional title of the record.')
     type: Optional[TitleType] = None
@@ -277,7 +277,7 @@ class AdditionalTitle(BaseModel):
 
 class Date(BaseModel):
     class Config:
-        extra = Extra.forbid
+        extra = 'forbid'
 
     date: Optional[str] = Field(
         None, description='Date, datetime or date interval in EDTF level 0 format'
@@ -291,7 +291,7 @@ class Date(BaseModel):
 
 class RelatedIdentifier(BaseModel):
     class Config:
-        extra = Extra.forbid
+        extra = 'forbid'
 
     identifier: Optional[Identifier] = None
     scheme: Optional[Scheme] = None
@@ -301,7 +301,7 @@ class RelatedIdentifier(BaseModel):
 
 class Right(BaseModel):
     class Config:
-        extra = Extra.forbid
+        extra = 'forbid'
 
     id: Optional[Identifier] = None
     title: Optional[Dict[str, Any]] = Field(
@@ -315,7 +315,7 @@ class Right(BaseModel):
 
 class AdditionalDescription(BaseModel):
     class Config:
-        extra = Extra.forbid
+        extra = 'forbid'
 
     description: Optional[str] = Field(None, description='Description for record.')
     type: Optional[DescriptionType] = None
@@ -329,7 +329,7 @@ class Geometry(BaseModel):
 
 class Funder(BaseModel):
     class Config:
-        extra = Extra.forbid
+        extra = 'forbid'
 
     name: Optional[str] = None
     id: Optional[Identifier] = None
@@ -337,7 +337,7 @@ class Funder(BaseModel):
 
 class Reference(BaseModel):
     class Config:
-        extra = Extra.forbid
+        extra = 'forbid'
 
     reference: Optional[str] = Field(None, description='A reference string.')
     identifier: Optional[Identifier] = None
@@ -346,7 +346,7 @@ class Reference(BaseModel):
 
 class IdentifiersWithScheme(BaseModel):
     class Config:
-        extra = Extra.forbid
+        extra = 'forbid'
 
     identifier: Optional[Identifier] = None
     scheme: Optional[Scheme] = None
@@ -379,14 +379,14 @@ class Feature(BaseModel):
 
 class Locations(BaseModel):
     class Config:
-        extra = Extra.forbid
+        extra = 'forbid'
 
     features: Optional[List[Feature]] = Field(None, min_items=1)
 
 
 class Award(BaseModel):
     class Config:
-        extra = Extra.forbid
+        extra = 'forbid'
 
     title: Optional[Dict[str, Any]] = None
     number: Optional[str] = None
@@ -396,7 +396,7 @@ class Award(BaseModel):
 
 class FundingItem(BaseModel):
     class Config:
-        extra = Extra.forbid
+        extra = 'forbid'
 
     funder: Optional[Funder] = None
     award: Optional[Award] = None
@@ -404,7 +404,7 @@ class FundingItem(BaseModel):
 
 class Tombstone(BaseModel):
     class Config:
-        extra = Extra.forbid
+        extra = 'forbid'
 
     removal_reason: Optional[RemovalReason] = Field(
         None, description='Reason for record removal.'
@@ -434,7 +434,7 @@ class InternalNotes(BaseModel):
 
 class Provenance(BaseModel):
     class Config:
-        extra = Extra.forbid
+        extra = 'forbid'
 
     created_by: Optional[Agent] = None
     on_behalf_of: Optional[Agent] = None
@@ -442,7 +442,7 @@ class Provenance(BaseModel):
 
 class PersonOrOrg(BaseModel):
     class Config:
-        extra = Extra.forbid
+        extra = 'forbid'
 
     name: Optional[str] = None
     type: Optional[NameType] = None
@@ -453,7 +453,7 @@ class PersonOrOrg(BaseModel):
 
 class Creator(BaseModel):
     class Config:
-        extra = Extra.forbid
+        extra = 'forbid'
 
     person_or_org: Optional[PersonOrOrg] = None
     role: Optional[Role] = None
@@ -462,7 +462,7 @@ class Creator(BaseModel):
 
 class Contributor(BaseModel):
     class Config:
-        extra = Extra.forbid
+        extra = 'forbid'
 
     person_or_org: Optional[PersonOrOrg] = None
     role: Optional[Role] = None
@@ -471,7 +471,7 @@ class Contributor(BaseModel):
 
 class Metadata(BaseModel):
     class Config:
-        extra = Extra.forbid
+        extra = 'forbid'
 
     resource_type: Optional[ResourceType] = None
     creators: Optional[List[Creator]] = Field(
@@ -522,7 +522,7 @@ class Metadata(BaseModel):
 
 class InveniordmRecordSchemaV600(BaseModel):
     class Config:
-        extra = Extra.forbid
+        extra = 'forbid'
 
     field_schema: Optional[FieldSchema] = Field(None, alias='$schema')
     id: Optional[Identifier] = None

@@ -20,6 +20,11 @@ def create_record(record):
         'Content-Type': 'application/json',
         'Authorization': f'Bearer {token}'
     }
+    
+    # print('--------IMPORTANTE-------')
+    # print(record)
+    # print(record['files'])
+    # print('--------IMPORTANTE-------')
     record['files'] = {'enabled': True}  # Activar archivos
     response = requests.post(url, headers=headers, data=json.dumps(record), verify=False)
     if response.status_code == 201:
@@ -89,6 +94,7 @@ def publish_record(record_id):
         print(f"Error al publicar el registro {record_id}:", response.json())
 
 # Crear y publicar los registros en InvenioRDM
+
 for record in records:
     record_id = create_record(record)
     if record_id:
