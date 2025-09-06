@@ -1,3 +1,5 @@
 .env
 .venv
 .data
+
+insert_data/upload_with_files/data
