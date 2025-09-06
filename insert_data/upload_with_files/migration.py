@@ -1,6 +1,7 @@
 import os
 from mapping_with_instances import xml_to_invenio_record
 from export_docs import create_record, upload_files, commit_files, publish_record
+import json
 
 def start_migration(base_path):
     data_folder = os.path.join(base_path, 'data')
@@ -15,7 +16,8 @@ def start_migration(base_path):
             filePath = load_dc_xml(subfolder_path)
             if filePath: 
                 jsonInfo = xml_to_invenio_record(filePath)
-                record_id = create_record(jsonInfo.json())
+                # print(json.dumps(json.loads(jsonInfo.json()), indent=4, sort_keys=True, ensure_ascii=False))
+                record_id = create_record(json.loads(jsonInfo.json()))
                 if record_id:
                     file = upload_files(record_id, get_files_in_subfolder(subfolder_path))
                     if file:

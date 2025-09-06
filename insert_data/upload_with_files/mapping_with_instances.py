@@ -21,7 +21,8 @@ def xml_to_invenio_record(xml_path: str) -> InveniordmRecordSchemaV600:
     # Creators
     creators = []
     for el in root.findall(".//dc:creator", namespaces=ns):
-        creators.append(Creator(person_or_org=PersonOrOrg(name=el.text)))
+        family_name, given_name = get_names_from_str(el.text)
+        creators.append(Creator(person_or_org=PersonOrOrg(name=el.text, type=NameType.personal, family_name=family_name, given_name=given_name)))
 
     # Subjects
     subjects = []
@@ -36,18 +37,20 @@ def xml_to_invenio_record(xml_path: str) -> InveniordmRecordSchemaV600:
     # Dates
     dates = []
     for el in root.findall(".//dc:date", namespaces=ns):
-        dates.append(Date(date=el.text))
+        dates.append(Date(date=el.text,type=DateType(id=Identifier(__root__='other'), ) ))
 
     # Resource type
     type_el = root.find(".//dc:type", namespaces=ns)
     resource_type = (
-        ResourceType(id=Identifier(__root__=type_el.text)) if type_el is not None else None
+        ResourceType(id=Identifier(__root__='dataset')) if type_el is not None else None
     )
+    
+    publisher = root.find(".//oai:identifier", namespaces=ns).text
 
     # Identifiers
     identifiers = []
     for el in root.findall(".//dc:identifier", namespaces=ns):
-        identifiers.append(IdentifiersWithScheme(identifier=Identifier(__root__=el.text)))
+        identifiers.append(IdentifiersWithScheme(identifier=Identifier(__root__=el.text), scheme=Scheme(__root__='other')))
 
     # Construcción del objeto final
     record = InveniordmRecordSchemaV600(
@@ -57,10 +60,22 @@ def xml_to_invenio_record(xml_path: str) -> InveniordmRecordSchemaV600:
             subjects=subjects,
             description=description,
             dates=dates or None,
+            publication_date=str(date.today()),
             resource_type=resource_type,
             identifiers=identifiers or None,
+            publisher=publisher or "Unknown Publisher",
         ),
-        files=FilesSimple()
+        access=Access(record=Record.public, files=Files.public),
+        # files=FilesSimple()
     )
 
     return record
+
+
+def get_names_from_str(full_name: str) :
+    
+    parts = [p.strip() for p in full_name.split(",")]
+    if len(parts) == 2:
+        family_name, given_name = parts
+        
+    return family_name, given_name

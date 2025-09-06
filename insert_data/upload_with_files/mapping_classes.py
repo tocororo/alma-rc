@@ -263,7 +263,7 @@ class User(BaseModel):
 
 
 class FilesSimple(BaseModel):
-    __root__: Any
+    enabled: bool = True
 
 
 class AdditionalTitle(BaseModel):
@@ -538,7 +538,7 @@ class InveniordmRecordSchemaV600(BaseModel):
     tombstone: Optional[Tombstone] = Field(
         None, description='Tombstone information for the record.'
     )
-    internal_notes: Optional[InternalNotes] = None
+    # internal_notes: Optional[InternalNotes] = None
     provenance: Optional[Provenance] = Field(None, description='Record provenance.')
     access: Optional[Access] = Field(
         None, description='Record access control and ownership.'

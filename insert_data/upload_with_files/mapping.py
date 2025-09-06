@@ -2,6 +2,12 @@ import xml.etree.ElementTree as ET
 import json
 import sys
 
+from mapping_classes import *
+
+
+def getCreators():
+    
+
 def oai_dc_to_invenio(input_xml: str, output_json: str):
     # Namespaces de OAI-DC
     ns = {
@@ -31,6 +37,15 @@ def oai_dc_to_invenio(input_xml: str, output_json: str):
         "coverage": [el.text for el in root.findall(".//dc:coverage", ns) if el.text],
         "rights": [el.text for el in root.findall(".//dc:rights", ns) if el.text],
     }
+    access: Access =Access(embargo=Embargo())
+    
+    mapped  = InveniordmRecordSchemaV600(
+        access=Access(files=Files.public, record=Record.public),
+        metadata=Metadata(
+            title=dc['title']if dc['title'] else 'N/A'
+            creators=
+        )                                 
+                                         )
 
     # Construcción del JSON con el schema de InvenioRDM
     record = {

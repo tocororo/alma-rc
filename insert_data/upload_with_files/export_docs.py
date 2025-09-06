@@ -6,11 +6,16 @@ import os
 invenio_base_url = 'https://inveniordm.web.cern.ch'  # URL de tu instancia de InvenioRDM
 token = 'hnnwcph9ceru5M8oGQQs40XrhihjvAWgOni35mPOCitZ8ubHndcgfgIV6cgl'  # Token de acceso para la API
 
-with open('example.json') as f:
-    records = json.load(f)
 
-# files_to_upload = ['path/to/your/file1.txt', 'path/to/your/file2.txt']
-files_to_upload = ['photo.png']
+# invenio_base_url = 'https://127.0.0.1:5000'  # URL de tu instancia de InvenioRDM
+# token = 'EuP9hlUE7S2WlL1mKMPu8a7TfAwXj7AoNRCzqe7A50oLFNfhUExaLyy4B43k'  # Token de acceso para la API
+
+
+# with open('example.json') as f:
+#     records = json.load(f)
+
+# # files_to_upload = ['path/to/your/file1.txt', 'path/to/your/file2.txt']
+# files_to_upload = ['photo.png']
 
 
 # Función para crear un nuevo registro en InvenioRDM
@@ -21,17 +26,14 @@ def create_record(record):
         'Authorization': f'Bearer {token}'
     }
     
-    # print('--------IMPORTANTE-------')
-    # print(record)
-    # print(record['files'])
-    # print('--------IMPORTANTE-------')
-    record['files'] = {'enabled': True}  # Activar archivos
     response = requests.post(url, headers=headers, data=json.dumps(record), verify=False)
     if response.status_code == 201:
         record_id = response.json()["id"]
         print("Registro creado con éxito:", record_id)
         return record_id
     else:
+        print("Error al crear el registro:", response.status_code)
+        print("Error al crear el registro:", response)
         print("Error al crear el registro:", response.json())
         return None
 
@@ -95,10 +97,10 @@ def publish_record(record_id):
 
 # Crear y publicar los registros en InvenioRDM
 
-for record in records:
-    record_id = create_record(record)
-    if record_id:
-        file = upload_files(record_id, files_to_upload)
-        if file:
-            commit_files(record_id, file)
-            publish_record(record_id)
+# for record in records:
+#     record_id = create_record(record)
+#     if record_id:
+#         file = upload_files(record_id, files_to_upload)
+#         if file:
+#             commit_files(record_id, file)
+#             publish_record(record_id)
