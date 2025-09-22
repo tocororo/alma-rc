@@ -49,5 +49,5 @@ def load_dc_xml(subfolder):
 
 # Ejemplo de uso:
 if __name__ == "__main__":
-    current_path = os.path.dirname(os.path.abspath(__file__))
+    current_path = "/home/malayo/dev/alma-rc/.data/metadatos_dspace/DICT/"
     start_migration(current_path)

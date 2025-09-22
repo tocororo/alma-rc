@@ -8,9 +8,15 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "lxml (>=6.0.0,<7.0.0)",
-    "sickle (>=0.7.0,<0.8.0)",
-    "datamodel-code-generator (>=0.33.0,<0.34.0)"
+    "lxml (==6.0.0)",
+    "sickle (==0.7.0)",
+    "datamodel-code-generator (>=0.33.0,<0.34.0)",
+    "certifi (==2025.7.14)",
+    "charset-normalizer (==3.4.2)",
+    "idna (==3.10)",
+    "requests (==2.32.4)",
+    "urllib3 (==2.5.0)",
+    "pydantic (>=2.11.9,<3.0.0)"
 ]
 
 

@@ -3,12 +3,12 @@ import requests
 import json
 import os
 
-invenio_base_url = 'https://inveniordm.web.cern.ch'  # URL de tu instancia de InvenioRDM
-token = 'hnnwcph9ceru5M8oGQQs40XrhihjvAWgOni35mPOCitZ8ubHndcgfgIV6cgl'  # Token de acceso para la API
+# invenio_base_url = 'https://inveniordm.web.cern.ch'  # URL de tu instancia de InvenioRDM
+# token = 'hnnwcph9ceru5M8oGQQs40XrhihjvAWgOni35mPOCitZ8ubHndcgfgIV6cgl'  # Token de acceso para la API
 
 
-# invenio_base_url = 'https://127.0.0.1:5000'  # URL de tu instancia de InvenioRDM
-# token = 'EuP9hlUE7S2WlL1mKMPu8a7TfAwXj7AoNRCzqe7A50oLFNfhUExaLyy4B43k'  # Token de acceso para la API
+invenio_base_url = 'https://127.0.0.1:5000'  # URL de tu instancia de InvenioRDM
+token = '9AUUZxCXkFX59UgeRGU7eO7ZNiQJm5oThHFjpiPVw0LFUpXfHyKn7wWUEn2c'  # Token de acceso para la API
 
 
 # with open('example.json') as f:
