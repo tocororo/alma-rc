@@ -6,7 +6,7 @@ from mapping_classes import *
 
 
 def getCreators():
-    
+    return ; 
 
 def oai_dc_to_invenio(input_xml: str, output_json: str):
     # Namespaces de OAI-DC
@@ -45,7 +45,7 @@ def oai_dc_to_invenio(input_xml: str, output_json: str):
             title=dc['title']if dc['title'] else 'N/A'
             creators=
         )                                 
-                                         )
+    )
 
     # Construcción del JSON con el schema de InvenioRDM
     record = {

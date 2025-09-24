@@ -8,7 +8,7 @@ import os
 
 
 invenio_base_url = 'https://127.0.0.1:5000'  # URL de tu instancia de InvenioRDM
-token = '9AUUZxCXkFX59UgeRGU7eO7ZNiQJm5oThHFjpiPVw0LFUpXfHyKn7wWUEn2c'  # Token de acceso para la API
+token = 'JKHdrvL49BLjJRRWR3tS41qWwn03C4CrqLW4ODonELAKwjwpBUfJDVJEs28n'  # Token de acceso para la API
 
 
 # with open('example.json') as f:

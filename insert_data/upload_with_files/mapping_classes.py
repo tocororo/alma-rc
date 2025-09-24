@@ -8,9 +8,9 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any, Dict, List, Optional, Union
 
-from pydantic import AnyUrl, BaseModel, Field, RootModel, constr
+from pydantic import AnyUrl, BaseModel, Field, constr
 
 
 class Record(Enum):
@@ -54,12 +54,12 @@ class Access(BaseModel):
     )
 
 
-class FieldSchema(RootModel):
-    root: Any
+class FieldSchema(BaseModel):
+    __root__: Any
 
 
-class Identifier(RootModel):
-    root: str = Field(..., description='An identifier.')
+class Identifier(BaseModel):
+    __root__: str = Field(..., description='An identifier.')
 
 
 class Status(Enum):
@@ -106,8 +106,8 @@ class ResourceType(BaseModel):
     id: Optional[Identifier] = None
 
 
-class Scheme(RootModel):
-    root: str = Field(..., description='A scheme.')
+class Scheme(BaseModel):
+    __root__: str = Field(..., description='A scheme.')
 
 
 class NameType(Enum):
@@ -187,8 +187,8 @@ class Type1(Enum):
     LineString = 'LineString'
 
 
-class Coordinate(RootModel):
-    root: List[float]
+class Coordinate(BaseModel):
+    __root__: List[float]
 
 
 class GeoJSONGeometry2(BaseModel):
@@ -237,8 +237,8 @@ class GeoJSONGeometry6(BaseModel):
     bbox: Optional[List[float]] = Field(None, min_items=4)
 
 
-class GeoJSONGeometry(RootModel):
-    root: Union[
+class GeoJSONGeometry(BaseModel):
+    __root__: Union[
         GeoJSONGeometry1,
         GeoJSONGeometry2,
         GeoJSONGeometry3,
@@ -352,23 +352,23 @@ class IdentifiersWithScheme(BaseModel):
     scheme: Optional[Scheme] = None
 
 
-class Affiliations(RootModel):
-    root: List[Affiliation]
+class Affiliations(BaseModel):
+    __root__: List[Affiliation]
 
 
-class Subjects(RootModel):
-    root: List[Subject]
+class Subjects(BaseModel):
+    __root__: List[Subject]
 
 
-class Agent(RootModel):
-    root: Optional[User] = Field(
+class Agent(BaseModel):
+    __root__: Optional[User] = Field(
         ..., description='An agent (user, software process, community, ...).'
     )
 
 
 class Feature(BaseModel):
     geometry: Optional[Geometry] = None
-    identifiers: Optional[Set[IdentifiersWithScheme]] = Field(None)
+    identifiers: Optional[List[IdentifiersWithScheme]] = Field(None, unique_items=True)
     place: Optional[constr(min_length=1)] = Field(
         None, description='Place of the location'
     )
@@ -448,7 +448,7 @@ class PersonOrOrg(BaseModel):
     type: Optional[NameType] = None
     given_name: Optional[str] = None
     family_name: Optional[str] = None
-    identifiers: Optional[Set[IdentifiersWithScheme]] = Field(None)
+    identifiers: Optional[List[IdentifiersWithScheme]] = Field(None, unique_items=True)
 
 
 class Creator(BaseModel):
@@ -496,8 +496,8 @@ class Metadata(BaseModel):
         None,
         description='The primary languages of the resource. ISO 639-3 language code.',
     )
-    identifiers: Optional[Set[IdentifiersWithScheme]] = Field(
-        None, description='Alternate identifiers for the record.'
+    identifiers: Optional[List[IdentifiersWithScheme]] = Field(
+        None, description='Alternate identifiers for the record.', unique_items=True
     )
     related_identifiers: Optional[List[RelatedIdentifier]] = None
     sizes: Optional[List[str]] = None

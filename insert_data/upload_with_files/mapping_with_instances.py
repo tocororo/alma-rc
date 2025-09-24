@@ -41,20 +41,26 @@ def xml_to_invenio_record(xml_path: str) -> InveniordmRecordSchemaV600:
 
     # Resource type
     type_el = root.find(".//dc:type", namespaces=ns)
-    resource_type = (
-        ResourceType(id=Identifier(__root__='dataset')) if type_el is not None else None
-    )
+    type_map = {
+        'Article': 'publication-article',
+        'Thesis': 'thesis',
+        'Other': 'publication',
+        'Presentation': 'presentation',
+        'Book': 'publication-book'
+    }
     
-    publisher = root.find(".//oai:identifier", namespaces=ns).text
+    resource_type = (
+        ResourceType(id=Identifier(__root__= type_map[type_el] if type_el in type_map else 'publication')) 
+    )
+    print(resource_type)
+    publisher = root.find(".//dc:publisher", namespaces=ns).text
 
     # Identifiers
     identifiers = []
     for el in root.findall(".//dc:identifier", namespaces=ns):
         identifiers.append(IdentifiersWithScheme(identifier=Identifier(__root__=el.text), scheme=Scheme(__root__='other')))
 
-    # Construcción del objeto final
-    record = InveniordmRecordSchemaV600(
-        metadata=Metadata(
+    metadata = Metadata(
             title=title,
             creators=creators or None,
             subjects=subjects,
@@ -63,8 +69,12 @@ def xml_to_invenio_record(xml_path: str) -> InveniordmRecordSchemaV600:
             publication_date=str(date.today()),
             resource_type=resource_type,
             identifiers=identifiers or None,
-            publisher=publisher or "Unknown Publisher",
-        ),
+            publisher=publisher or 'Repositorio de la Universidad de Pinar del Río "Hermanos Saíz Montes de Oca"',
+        )
+    print(metadata)
+    # Construcción del objeto final
+    record = InveniordmRecordSchemaV600(
+        metadata=metadata,
         access=Access(record=Record.public, files=Files.public),
         # files=FilesSimple()
     )
