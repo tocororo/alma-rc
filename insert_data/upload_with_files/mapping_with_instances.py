@@ -1,7 +1,153 @@
+import os
+import idutils
+import idutils.detectors
 from lxml import etree
 from mapping_classes import *
 
-def xml_to_invenio_record(xml_path: str) -> InveniordmRecordSchemaV600:
+def load_invenio_from_folder(path:str) -> InveniordmRecordSchemaV600:
+    dc_path = os.path.join(path, 'metadata_oai_dc.xml')
+    rc_handle, record = xml_oai_dc_to_invenio_record(dc_path)
+
+    mets_path = os.path.join(path, 'metadata_mets.xml')
+    extract_mods_dates(mets_path, record=record)
+    
+    # TODO: basado en los setSpec the oaipmh, asignar el vocabulario especial de materias de la upr... 
+    # TODO: basado en el publisher asignar el vocabulario especial sobre facultades..  si esta en el setSpec de programas externo.. tambien..  
+
+
+    return rc_handle, record
+
+def extract_mods_dates(xml_path: str, record: InveniordmRecordSchemaV600):
+    # Define the namespaces
+    namespaces = {
+        'mets': 'http://www.loc.gov/METS/',
+        'mods': 'http://www.loc.gov/mods/v3'
+    }
+
+    # Parse the XML string
+    tree = etree.parse(xml_path)
+    root = tree.getroot()
+
+    # Find the xmlData element which contains the MODS data using the METS namespace
+    xml_data = root.xpath('.//mets:xmlData', namespaces=namespaces)
+    if not xml_data:
+        print("Could not find xmlData element containing MODS metadata.")
+        return []
+    # Assuming the first xmlData element is the correct one
+    mods_root = xml_data[0]
+
+    # Find all date-related elements within the MODS namespace using xpath
+    # This looks for any mods element whose local name starts with 'date'
+    date_elements = mods_root.xpath('.//mods:*[starts-with(local-name(), "date")]', namespaces=namespaces)
+    
+    dates_info = []
+    date_map = {
+        'dateAccessioned': 'accepted',
+        'dateAvailable': 'available',
+        'dateCaptured': 'collected',
+        'copyrightDate': 'copyrighted',
+        'dateCreated': 'created',
+        'dateIssued': 'issued',
+        'dateSubmitted': 'submitted',
+        'dateModified': 'updated',
+        'dateValid': 'valid',
+        'dateWithdrawn': 'withdrawn',
+        'dateOther': 'other'
+    }
+    dates = []
+    pub_date = None
+    for elem in date_elements:
+        date_value = elem.text.strip() if elem.text else ''
+        date_type = etree.QName(elem).localname
+
+        
+        
+        dates.append(
+            Date(
+                date=date_value,
+                type=DateType(id=Identifier(__root__=date_map.get(date_type) if date_type is not None and date_type in date_map else 'other') ) ))
+        if date_type == 'dateIssued':
+            pub_date = date_value
+
+    record.metadata.dates = dates
+    record.metadata.publication_date = pub_date
+
+# Example usage with the provided XML string (assuming it's stored in a variable called 'xml_data_string')
+# dates_found = extract_mods_dates(xml_data_string)
+# for date_info in dates_found:
+#     print(f"Date Value: {date_info['date_value']}, Type: {date_info['date_type']}")
+#     if 'encoding' in date_info:
+#         print(f"  Encoding: {date_info['encoding']}")
+
+def upr_issue(record: InveniordmRecordSchemaV600):
+            # "com_DICT_504": "Especialidades"
+        #             "com_DICT_22": "Otros Documentos Científicos",
+        # "com_DICT_2": "Tesis Doctorales",
+        # "com_DICT_4": "Tesis de Maestría",
+
+    especialidades = {
+
+    }
+    tipos_documentos = {
+        "col_DICT_1599": "Artículos",
+        "col_DICT_24": "Capitulos de Libros",
+        "col_DICT_25": "Libros",
+        "col_DICT_680": "Ponencias, Comunicaciones en congresos, Conferencias",
+    }
+    materias_upr = {
+        "col_DICT_511": "Aprovechamiento  Forestal",
+        "col_DICT_1897": "Atletismo",
+        "col_DICT_1898": "Beisbol",
+        "col_DICT_1900": "Boxeo",
+        "col_DICT_513": "Contabilidad",
+        "col_DICT_508": "Cultivo  del Tabaco",
+        "col_DICT_506": "Dirección  de Instituciones Educativas",
+        "col_DICT_514": "Docencia Psicopedagógica",
+        "col_DICT_507": "Gestión Hotelera",
+        "col_DICT_512": "Fruticultura Tropical",
+        "col_DICT_510": "Silvicultura",
+        "col_DICT_509": "Producción  Agroindustrial de Arroz",
+        "col_DICT_1899": "Tiro Deportivo",
+        "col_DICT_505": "Trabajo Social",
+        "col_DICT_1870": "Ciencias Económicas",
+        "col_DICT_29": "Desarrollo Sostenible de Bosques Tropicales: Manejos Forestal y Turístico",
+        "col_DICT_30": "Geología Regional y Exploración de Recursos Geológicos", 
+        "col_DICT_1959": "Actividad Física Comunitaria",
+        "col_DICT_31": "Administración de Empresas Agropecuarias",
+        "col_DICT_501": "Agroecología",
+        "col_DICT_28": "Ciencias Pedagógicas",   
+        "col_DICT_33": "Desarrollo Social",      
+        "col_DICT_1961": "Didáctica de la Educación Física",
+        "col_DICT_34": "Dirección",
+        "col_DICT_515": "Educación",
+        "col_DICT_502": "Eficiencia Energética",
+        "col_DICT_35": "Geología",
+        "col_DICT_36": "Gestión Ambiental",
+        "col_DICT_1960": "Metodología del Entrenamiento Deportivo",
+        "col_DICT_37": "Nuevas Tecnologías para la Educación",
+        "col_DICT_503": "Pedagogía Profesional",
+        "col_DICT_38": "Sistemas de Telecomunicaciones",   
+        "col_DICT_499": "Ciencias Forestales",
+        "col_DICT_32": "Ciencias de la Educación",             
+        "col_DICT_1902": "Cultura Física",         
+    }
+    
+    repetidas = {
+        "col_DICT_516": "Ciencias Forestales",
+        "col_DICT_1739": "Ciencias de la Educación",
+        "col_DICT_1901": "Cultura Física",        
+    }
+    tesis_doc = {
+
+        "col_DICT_1868": "Programas externos a la universidad",
+        "col_DICT_519": "Programas Externos a la Universidad",
+    }
+    upr_map = {
+
+    }
+
+
+def xml_oai_dc_to_invenio_record(xml_path: str) -> InveniordmRecordSchemaV600:
     ns = {
         "oai": "http://www.openarchives.org/OAI/2.0/",
         "dc": "http://purl.org/dc/elements/1.1/",
@@ -18,7 +164,7 @@ def xml_to_invenio_record(xml_path: str) -> InveniordmRecordSchemaV600:
     title_el = root.find(".//dc:title", namespaces=ns)
     title = title_el.text if title_el is not None else None
 
-    # Creators
+    # Creators TODO...
     creators = []
     for el in root.findall(".//dc:creator", namespaces=ns):
         family_name, given_name = get_names_from_str(el.text)
@@ -48,17 +194,28 @@ def xml_to_invenio_record(xml_path: str) -> InveniordmRecordSchemaV600:
         'Presentation': 'presentation',
         'Book': 'publication-book'
     }
+
     
     resource_type = (
-        ResourceType(id=Identifier(__root__= type_map[type_el] if type_el in type_map else 'publication')) 
+        ResourceType(id=Identifier(__root__= type_map.get(type_el.text) if type_el is not None and type_el.text in type_map else 'publication')) 
     )
-    print(resource_type)
     publisher = root.find(".//dc:publisher", namespaces=ns).text
 
     # Identifiers
     identifiers = []
+    rc_handle = ''
     for el in root.findall(".//dc:identifier", namespaces=ns):
-        identifiers.append(IdentifiersWithScheme(identifier=Identifier(__root__=el.text), scheme=Scheme(__root__='other')))
+        scheme = idutils.detectors.detect_identifier_schemes(el.text)
+        if 'https://rc.upr.edu.cu/jspui/handle/DICT' in el.text:
+            rc_handle = el.text
+            scheme = ['handle']
+        if 'issn' in scheme:
+            # TODO: poner en el formato de invenio los datos de la revista en particular... 
+            # esto puede implicar usar fuentes externas... 
+            print("Tratar los datos de la revista.... ")
+        if len(scheme) > 0:
+            identifiers.append(IdentifiersWithScheme(identifier=Identifier(__root__=el.text), scheme=Scheme(__root__=scheme[0])))
+        
 
     metadata = Metadata(
             title=title,
@@ -71,7 +228,6 @@ def xml_to_invenio_record(xml_path: str) -> InveniordmRecordSchemaV600:
             identifiers=identifiers or None,
             publisher=publisher or 'Repositorio de la Universidad de Pinar del Río "Hermanos Saíz Montes de Oca"',
         )
-    print(metadata)
     # Construcción del objeto final
     record = InveniordmRecordSchemaV600(
         metadata=metadata,
@@ -79,7 +235,7 @@ def xml_to_invenio_record(xml_path: str) -> InveniordmRecordSchemaV600:
         # files=FilesSimple()
     )
 
-    return record
+    return rc_handle, record
 
 
 def get_names_from_str(full_name: str) :

@@ -261,6 +261,24 @@ files = [
 all = ["flake8 (>=7.1.1)", "mypy (>=1.11.2)", "pytest (>=8.3.2)", "ruff (>=0.6.2)"]
 
 [[package]]
+name = "idutils"
+version = "1.5.0"
+description = "\"Small library for persistent identifiers used in scholarly communication.\""
+optional = false
+python-versions = ">=3.7"
+groups = ["main"]
+files = [
+    {file = "idutils-1.5.0-py2.py3-none-any.whl", hash = "sha256:7637626dbe3ce6600f614088059e2b9a59b41cf57645c7d955bdf67aaaef4dc6"},
+    {file = "idutils-1.5.0.tar.gz", hash = "sha256:9ec11ebcbd7f7a4c8f93e2228d11d28965b582a9c3b8536f524a072291278100"},
+]
+
+[package.dependencies]
+isbnlib = ">=3.10.8"
+
+[package.extras]
+tests = ["pytest-black-ng (>=0.4.0)", "pytest-cache (>=1.0)", "pytest-invenio (>=1.4.0)", "pytest-runner (>=2.6.2)", "sphinx (>=4.5)"]
+
+[[package]]
 name = "inflect"
 version = "7.5.0"
 description = "Correctly generate plurals, singular nouns, ordinals, indefinite articles"
@@ -283,6 +301,18 @@ doc = ["furo", "jaraco.packaging (>=9.3)", "jaraco.tidelift (>=1.4)", "rst.linke
 enabler = ["pytest-enabler (>=2.2)"]
 test = ["pygments", "pytest (>=6,!=8.1.*)"]
 type = ["pytest-mypy"]
+
+[[package]]
+name = "isbnlib"
+version = "3.10.14"
+description = "Extract, clean, transform, hyphenate and metadata for ISBNs (International Standard Book Number)."
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "isbnlib-3.10.14-py2.py3-none-any.whl", hash = "sha256:f885b350fc8e600a919ed46e3b07253062cd604af69885455a25a299217b3fe2"},
+    {file = "isbnlib-3.10.14.tar.gz", hash = "sha256:96f90864c77b01f55fa11e5bfca9fd909501d9842f3bc710d4eab85195d90539"},
+]
 
 [[package]]
 name = "isort"
@@ -780,4 +810,4 @@ zstd = ["zstandard (>=0.18.0)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12"
-content-hash = "f81396472c8938e6756192e36c52c52975082201ef8084e997dd91e2f2c5c40d"
+content-hash = "6fe1e9c22c963ed352a5cec3c0ebb887cb5febada693b6cbfae382453d2b90cf"
