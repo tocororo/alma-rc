@@ -231,6 +231,11 @@ def xml_oai_dc_to_invenio_record(xml_path: str) -> InveniordmRecordSchemaV600:
     for el in root.findall(".//dc:creator", namespaces=ns):
         family_name, given_name = get_names_from_str(el.text)
         creators.append(Creator(person_or_org=PersonOrOrg(name=el.text, type=NameType.personal, family_name=family_name, given_name=given_name)))
+    # TODO: usando 
+    # https://127.0.0.1:5000/api/names?q=(family_name:<<"family name">>)AND(given_name:<<"given name">>)
+    # si hay un unico match entonces se toma esa persona para vincularla al record. 
+    
+
 
     # Subjects
     subjects = []
@@ -248,6 +253,7 @@ def xml_oai_dc_to_invenio_record(xml_path: str) -> InveniordmRecordSchemaV600:
         dates.append(Date(date=el.text,type=DateType(id=Identifier(__root__='other'), ) ))
 
     # Resource type
+    # TODO: todos los tipos...
     type_el = root.find(".//dc:type", namespaces=ns)
     type_map = {
         'Article': 'publication-article',
