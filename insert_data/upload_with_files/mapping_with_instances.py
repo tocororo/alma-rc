@@ -4,12 +4,20 @@ import idutils.detectors
 from lxml import etree
 from mapping_classes import *
 
-def load_invenio_from_folder(path:str) -> InveniordmRecordSchemaV600:
-    dc_path = os.path.join(path, 'metadata_oai_dc.xml')
-    rc_handle, record = xml_oai_dc_to_invenio_record(dc_path)
+from rapidfuzz import process, fuzz
+import re
 
+def load_invenio_from_folder(path:str) -> InveniordmRecordSchemaV600:
+    rc_handle = ''
+    record = None
+    dc_path = os.path.join(path, 'metadata_oai_dc.xml')
+    if os.path.exists(dc_path):
+        rc_handle, record = xml_oai_dc_to_invenio_record(dc_path)
+
+    
     mets_path = os.path.join(path, 'metadata_mets.xml')
-    extract_mods_dates(mets_path, record=record)
+    if os.path.exists(mets_path):
+        extract_mods_dates(mets_path, record=record)
     
     # TODO: basado en los setSpec the oaipmh, asignar el vocabulario especial de materias de la upr... 
     # TODO: basado en el publisher asignar el vocabulario especial sobre facultades..  si esta en el setSpec de programas externo.. tambien..  
@@ -72,22 +80,57 @@ def extract_mods_dates(xml_path: str, record: InveniordmRecordSchemaV600):
     record.metadata.dates = dates
     record.metadata.publication_date = pub_date
 
-# Example usage with the provided XML string (assuming it's stored in a variable called 'xml_data_string')
-# dates_found = extract_mods_dates(xml_data_string)
-# for date_info in dates_found:
-#     print(f"Date Value: {date_info['date_value']}, Type: {date_info['date_type']}")
-#     if 'encoding' in date_info:
-#         print(f"  Encoding: {date_info['encoding']}")
 
-def upr_issue(record: InveniordmRecordSchemaV600):
-            # "com_DICT_504": "Especialidades"
-        #             "com_DICT_22": "Otros Documentos Científicos",
-        # "com_DICT_2": "Tesis Doctorales",
-        # "com_DICT_4": "Tesis de Maestría",
-
-    especialidades = {
-
+def get_entity_upr_from_publisher(publisher: str) -> str:
+    upr_entities = {
+        'fcyt': 'Facultad de Ciencias Técnicas',
+        'fhum': 'Facultad de Humanidades',
+        'fmedia': 'Facultad de Enseñanza Media',
+        'fprimaria': 'Facultad de Educación General',
+        'fdeport': 'Facultad de Deportes',
+        'fforestal': 'Facultad de Ciencias Forestales',
+        'fagronomia': 'Facultad de Agronomía',
+        'externo': 'Programas externos a la universidad',
+        'CEF': 'Centro de Estudios Forestales',
+        'CECEPRI': 'Centro de Estudios de Ciencias de la Educación',
+        'CEEDAR': 'Centro de Estudios del Entrenamiento Deportivo en el Alto Rendimiento',
+        'CE_GESTA': 'Centro de Estudios de Dirección, Desarrollo Local, Turismo y Cooperativismo',
+        'CEMARNA': 'Centro de Estudios de Medio Ambiente y Recurso Naturales'
     }
+
+    publisher_lower = publisher.lower().strip()
+    
+    
+    required_terms = ['universidad de pinar del río', 'upr', 'universidad de pinar del rio']
+    if not any(term in publisher_lower for term in required_terms):
+        return None
+        
+
+    clean_publisher = re.sub(r'universidad de pinar del río|upr', '', publisher_lower, flags=re.IGNORECASE).strip()
+    search_text = clean_publisher or publisher_lower
+    
+    titles = list(upr_entities.values())
+    print('-------------------')
+    print(clean_publisher)
+    print('-------------------')
+    print(titles)
+    print('-------------------')
+    result = process.extractOne(search_text, titles, 
+                               scorer=fuzz.WRatio,  # Weighted Ratio (best overall)
+                               score_cutoff=75)
+    
+    if result:
+        matched_title, score, index = result
+        for entity_id, title in upr_entities.items():
+            if title == matched_title:
+                return entity_id
+    
+    return None
+
+
+def fix_custom_fields(record: InveniordmRecordSchemaV600, set_spec_values):
+
+
     tipos_documentos = {
         "col_DICT_1599": "Artículos",
         "col_DICT_24": "Capitulos de Libros",
@@ -131,20 +174,39 @@ def upr_issue(record: InveniordmRecordSchemaV600):
         "col_DICT_32": "Ciencias de la Educación",             
         "col_DICT_1902": "Cultura Física",         
     }
-    
     repetidas = {
-        "col_DICT_516": "Ciencias Forestales",
-        "col_DICT_1739": "Ciencias de la Educación",
-        "col_DICT_1901": "Cultura Física",        
+        "col_DICT_516": "col_DICT_499",
+        "col_DICT_1739": "col_DICT_32",
+        "col_DICT_1901": "col_DICT_1902",        
     }
-    tesis_doc = {
 
+
+    p_externos = {
         "col_DICT_1868": "Programas externos a la universidad",
         "col_DICT_519": "Programas Externos a la Universidad",
     }
-    upr_map = {
 
-    }
+    print('*****************************    ', set_spec_values)
+    custom_materias = []
+    custom_entity = None
+    for spec in set_spec_values:
+        if spec in materias_upr:
+            custom_materias.append({'id': spec})
+        elif spec in repetidas:
+            custom_materias.append({'id': repetidas.get(spec)})
+        elif spec in p_externos:
+            custom_entity = spec
+    
+    record.custom_fields = {}
+    if custom_entity is not None:
+        custom_entity = get_entity_upr_from_publisher(record.metadata.publisher)
+        print('*****************************    ', custom_entity)
+    
+    if custom_entity is not None:
+        record.custom_fields.update({'upr:entidades': {'id': custom_entity}})
+    if custom_materias != []:
+        record.custom_fields.update({'upr:materias': custom_materias})
+
 
 
 def xml_oai_dc_to_invenio_record(xml_path: str) -> InveniordmRecordSchemaV600:
@@ -189,7 +251,7 @@ def xml_oai_dc_to_invenio_record(xml_path: str) -> InveniordmRecordSchemaV600:
     type_el = root.find(".//dc:type", namespaces=ns)
     type_map = {
         'Article': 'publication-article',
-        'Thesis': 'thesis',
+        # 'Thesis': 'thesis',
         'Other': 'publication',
         'Presentation': 'presentation',
         'Book': 'publication-book'
@@ -226,7 +288,7 @@ def xml_oai_dc_to_invenio_record(xml_path: str) -> InveniordmRecordSchemaV600:
             publication_date=str(date.today()),
             resource_type=resource_type,
             identifiers=identifiers or None,
-            publisher=publisher or 'Repositorio de la Universidad de Pinar del Río "Hermanos Saíz Montes de Oca"',
+            publisher=publisher or 'Universidad de Pinar del Río "Hermanos Saíz Montes de Oca"',
         )
     # Construcción del objeto final
     record = InveniordmRecordSchemaV600(
@@ -234,6 +296,16 @@ def xml_oai_dc_to_invenio_record(xml_path: str) -> InveniordmRecordSchemaV600:
         access=Access(record=Record.public, files=Files.public),
         # files=FilesSimple()
     )
+
+    # Find all setSpec elements
+    set_spec_elements = root.xpath('//oai:setSpec', namespaces=ns)
+    
+    # Extract the text content of each setSpec element
+    set_spec_values = [elem.text for elem in set_spec_elements if elem.text]
+
+    fix_custom_fields(record, set_spec_values)
+
+
 
     return rc_handle, record
 

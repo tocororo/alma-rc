@@ -3,12 +3,27 @@ import requests
 import json
 import os
 
+
 # invenio_base_url = 'https://inveniordm.web.cern.ch'  # URL de tu instancia de InvenioRDM
 # token = 'hnnwcph9ceru5M8oGQQs40XrhihjvAWgOni35mPOCitZ8ubHndcgfgIV6cgl'  # Token de acceso para la API
 
 
 invenio_base_url = 'https://127.0.0.1:5000'  # URL de tu instancia de InvenioRDM
-token = 'JKHdrvL49BLjJRRWR3tS41qWwn03C4CrqLW4ODonELAKwjwpBUfJDVJEs28n'  # Token de acceso para la API
+token = 'tkK2nd6u4jOPjk4KoUOcFLidxlg3IFnSHdM7C5xNrfiuSR9fXNYEheVUKNnt'  # Token de acceso para la API
+
+
+
+
+def get_files_in_subfolder(subfolder):
+    files_folder = os.path.join(subfolder, 'files')
+    if not os.path.isdir(files_folder):
+        return []
+    file_paths = []
+    for root, _, files in os.walk(files_folder):
+        for file in files:
+            file_paths.append(os.path.join(root, file))
+    return file_paths
+    
 
 
 def delete_all_records_and_drafts():
@@ -118,7 +133,7 @@ def search_record_exact(value):
         print(f"Error en la búsqueda: {response.status_code}", response.json())
         return None
 
-def create_or_update_record(record, record_id=None):
+def create_or_update_record(record, record_id=None, subfolder_path=''):
     """
     Crea un nuevo registro o actualiza un borrador existente en InvenioRDM.
     
@@ -135,16 +150,7 @@ def create_or_update_record(record, record_id=None):
     }
 
     if record_id is None:
-        # Crear un nuevo registro (draft)
-        url = f"{invenio_base_url}/api/records"
-        response = requests.post(url, headers=headers, data=json.dumps(record), verify=False)
-        if response.status_code == 201:
-            new_record_id = response.json()["id"]
-            print(f"Registro creado con éxito: {new_record_id}")
-            return new_record_id
-        else:
-            print("Error al crear el registro:", response.status_code, response.json())
-            return None
+        return create_record(record, subfolder_path)
     else:
         # Actualizar un draft existente
         # Primero, asegurarse de que exista un draft. Si el registro está publicado,
@@ -180,7 +186,7 @@ def create_or_update_record(record, record_id=None):
 
 
 # Función para crear un nuevo registro en InvenioRDM
-def create_record(record):
+def create_record(record, subfolder_path):
     url = f"{invenio_base_url}/api/records"
     headers = {
         'Content-Type': 'application/json',
@@ -191,12 +197,17 @@ def create_record(record):
     if response.status_code == 201:
         record_id = response.json()["id"]
         print("Registro creado con éxito:", record_id)
+        file = upload_files(record_id, get_files_in_subfolder(subfolder_path))
+        if file:
+            commit_files(record_id, file)
+            publish_record(record_id)
         return record_id
     else:
         print("Error al crear el registro:", response.status_code)
         print("Error al crear el registro:", response)
         print("Error al crear el registro:", response.json())
         return None
+        
 
 # Función para subir archivos a un registro en InvenioRDM
 def upload_files(record_id, files):
