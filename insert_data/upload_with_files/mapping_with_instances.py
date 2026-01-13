@@ -265,6 +265,28 @@ def xml_oai_dc_to_invenio_record(xml_path: str) -> InveniordmRecordSchemaV600:
     # Title
     title_el = root.find(".//dc:title", namespaces=ns)
     title = title_el.text if title_el is not None else None
+    
+    contributors = []
+    for el in root.findall(".//dc:contributor", namespaces=ns):
+        family_name, given_name = get_names_from_str(el.text)
+        person_match = find_person_in_invenio(family_name, given_name)
+        if person_match:
+            contributors.append(
+            Contributor(
+                person_or_org=PersonOrOrg(
+                    type=NameType.personal,
+                    name=person_match["name"],
+                    family_name=person_match.get("family_name"),
+                    given_name=person_match.get("given_name"),
+                    identifiers=person_match.get("identifiers")
+                ),
+                affiliations=person_match.get("affiliations")
+                )
+            )
+            
+        else:
+            contributors.append(Contributor(person_or_org=PersonOrOrg(name=el.text, type=NameType.personal, family_name=family_name, given_name=given_name)))
+        
 
     # Creators TODO...
     creators = []
@@ -345,6 +367,7 @@ def xml_oai_dc_to_invenio_record(xml_path: str) -> InveniordmRecordSchemaV600:
     metadata = Metadata(
             title=title,
             creators=creators or None,
+            contributors=contributors or None,
             subjects=subjects,
             description=description,
             dates=dates or None,
