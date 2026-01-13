@@ -1,4 +1,5 @@
 import os
+from reprlib import recursive_repr
 import idutils
 import idutils.detectors
 from lxml import etree
@@ -136,7 +137,24 @@ def fix_custom_fields(record: InveniordmRecordSchemaV600, set_spec_values):
         "col_DICT_24": "Capitulos de Libros",
         "col_DICT_25": "Libros",
         "col_DICT_680": "Ponencias, Comunicaciones en congresos, Conferencias",
+        "com_DICT_2": "Tesis Doctorales",
+        "com_DICT_4": "Tesis de Maestría"
     }
+
+    type_map = {
+        'col_DICT_1599': 'publication-article',
+        'col_DICT_24': 'publication-section',
+        'col_DICT_25': 'publication-book',
+        'col_DICT_680':'publication-conferencepaper',
+        'com_DICT_2': 'thesis-doctoral_thesis',
+        'com_DICT_4': 'thesis-master_thesis'
+    }
+    for spec in set_spec_values:
+        if spec in type_map:
+            record.metadata.resource_type =  ResourceType(id=Identifier(__root__= type_map.get(spec))) 
+            
+            
+            
     materias_upr = {
         "col_DICT_511": "Aprovechamiento  Forestal",
         "col_DICT_1897": "Atletismo",
@@ -234,7 +252,7 @@ def xml_oai_dc_to_invenio_record(xml_path: str) -> InveniordmRecordSchemaV600:
     # TODO: usando 
     # https://127.0.0.1:5000/api/names?q=(family_name:<<"family name">>)AND(given_name:<<"given name">>)
     # si hay un unico match entonces se toma esa persona para vincularla al record. 
-    
+
 
 
     # Subjects
@@ -263,11 +281,14 @@ def xml_oai_dc_to_invenio_record(xml_path: str) -> InveniordmRecordSchemaV600:
         'Book': 'publication-book'
     }
 
-    
     resource_type = (
         ResourceType(id=Identifier(__root__= type_map.get(type_el.text) if type_el is not None and type_el.text in type_map else 'publication')) 
     )
-    publisher = root.find(".//dc:publisher", namespaces=ns).text
+    
+    if root.find(".//dc:publisher", namespaces=ns):
+        publisher = root.find(".//dc:publisher", namespaces=ns).text  
+    else: 
+        publisher = 'Universidad de Pinar del Río "Hermanos Saíz Montes de Oca"' 
 
     # Identifiers
     identifiers = []
@@ -283,7 +304,7 @@ def xml_oai_dc_to_invenio_record(xml_path: str) -> InveniordmRecordSchemaV600:
             print("Tratar los datos de la revista.... ")
         if len(scheme) > 0:
             identifiers.append(IdentifiersWithScheme(identifier=Identifier(__root__=el.text), scheme=Scheme(__root__=scheme[0])))
-        
+
 
     metadata = Metadata(
             title=title,
@@ -294,7 +315,7 @@ def xml_oai_dc_to_invenio_record(xml_path: str) -> InveniordmRecordSchemaV600:
             publication_date=str(date.today()),
             resource_type=resource_type,
             identifiers=identifiers or None,
-            publisher=publisher or 'Universidad de Pinar del Río "Hermanos Saíz Montes de Oca"',
+            publisher=publisher,
         )
     # Construcción del objeto final
     record = InveniordmRecordSchemaV600(
