@@ -232,7 +232,7 @@ def find_person_in_invenio(family_name: str, given_name: str) -> dict | None:
     Devuelve el registro si hay un único match, en otro caso None.
     """
     NAMES_API= "https://127.0.0.1:5000/api/names"
-    query = f'(family_name:<<"{family_name}">>)AND(given_name:<<"{given_name}">>)'
+    query = f'(family_name:"{family_name}")AND(given_name:"{given_name}")'
 
     response = requests.get(
         NAMES_API,
@@ -242,7 +242,6 @@ def find_person_in_invenio(family_name: str, given_name: str) -> dict | None:
 
     response.raise_for_status()
     data = response.json()
-
     hits = data.get("hits", {}).get("hits", [])
 
     if len(hits) == 1:
@@ -280,25 +279,17 @@ def xml_oai_dc_to_invenio_record(xml_path: str) -> InveniordmRecordSchemaV600:
                     name=person_match["name"],
                     family_name=person_match.get("family_name"),
                     given_name=person_match.get("given_name"),
-                    identifiers=[
-                        Identifier(
-                            scheme="invenio",
-                            identifier=person_match["id"]
-                        )
-                    ]
+                    identifiers=person_match.get("identifiers")
+                ),
+                affiliations=person_match.get("affiliations")
                 )
             )
-        )
             
         else:
             creators.append(Creator(person_or_org=PersonOrOrg(name=el.text, type=NameType.personal, family_name=family_name, given_name=given_name)))
         
-        
-    # TODO: usando 
-    # https://127.0.0.1:5000/api/names?q=(family_name:<<"family name">>)AND(given_name:<<"given name">>)
-    # si hay un unico match entonces se toma esa persona para vincularla al record. 
-
-
+    # TODO: los roles, solo estamos manejando los creators, pero son mas... 
+    
 
     # Subjects
     subjects = []
