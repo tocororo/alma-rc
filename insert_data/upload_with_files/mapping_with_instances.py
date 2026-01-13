@@ -3,6 +3,7 @@ import idutils
 import idutils.detectors
 from lxml import etree
 from mapping_classes import *
+import requests
 
 from rapidfuzz import process, fuzz
 import re
@@ -207,6 +208,28 @@ def fix_custom_fields(record: InveniordmRecordSchemaV600, set_spec_values):
     if custom_materias != []:
         record.custom_fields.update({'upr:materias': custom_materias})
 
+def find_person_in_invenio(family_name: str, given_name: str) -> dict | None:
+    """
+    Busca una persona en InvenioRDM por family_name y given_name.
+    Devuelve el registro si hay un único match, en otro caso None.
+    """
+    NAMES_API= "https://127.0.0.1:5000/api/names"
+    query = f'(family_name:<<"{family_name}">>)AND(given_name:<<"{given_name}">>)'
+
+    response = requests.get(
+        NAMES_API,
+        params={"q": query},
+        verify=False  # ⚠️ solo para localhost con https autofirmado
+    )
+
+    response.raise_for_status()
+    data = response.json()
+
+    hits = data.get("hits", {}).get("hits", [])
+
+    if len(hits) == 1:
+        return hits[0]
+    return None
 
 
 def xml_oai_dc_to_invenio_record(xml_path: str) -> InveniordmRecordSchemaV600:
@@ -230,7 +253,29 @@ def xml_oai_dc_to_invenio_record(xml_path: str) -> InveniordmRecordSchemaV600:
     creators = []
     for el in root.findall(".//dc:creator", namespaces=ns):
         family_name, given_name = get_names_from_str(el.text)
-        creators.append(Creator(person_or_org=PersonOrOrg(name=el.text, type=NameType.personal, family_name=family_name, given_name=given_name)))
+        person_match = find_person_in_invenio(family_name, given_name)
+        if person_match:
+            creators.append(
+            Creator(
+                person_or_org=PersonOrOrg(
+                    type=NameType.personal,
+                    name=person_match["name"],
+                    family_name=person_match.get("family_name"),
+                    given_name=person_match.get("given_name"),
+                    identifiers=[
+                        Identifier(
+                            scheme="invenio",
+                            identifier=person_match["id"]
+                        )
+                    ]
+                )
+            )
+        )
+            
+        else:
+            creators.append(Creator(person_or_org=PersonOrOrg(name=el.text, type=NameType.personal, family_name=family_name, given_name=given_name)))
+        
+        
     # TODO: usando 
     # https://127.0.0.1:5000/api/names?q=(family_name:<<"family name">>)AND(given_name:<<"given name">>)
     # si hay un unico match entonces se toma esa persona para vincularla al record. 
