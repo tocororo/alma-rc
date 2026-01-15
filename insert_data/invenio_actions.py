@@ -19,7 +19,7 @@ def get_files_in_subfolder(subfolder):
     if not os.path.isdir(files_folder):
         return []
     file_paths = []
-    for root, _, files in os.walk(files_folder):
+    for root, _, files in os.walk(subfolder):
         for file in files:
             file_paths.append(os.path.join(root, file))
     return file_paths
@@ -89,7 +89,7 @@ def delete_all_records_and_drafts():
 # # files_to_upload = ['path/to/your/file1.txt', 'path/to/your/file2.txt']
 # files_to_upload = ['photo.png']
 
-def search_record_exact(value):
+def search_record_exact(field, value):
     """
     Busca un registro en InvenioRDM con coincidencia exacta en un campo de metadatos.
     
@@ -107,7 +107,7 @@ def search_record_exact(value):
 
     # Escapar comillas en el valor para evitar inyección en la query
     
-    query = f'"{value}"'
+    query = f'{field}:"{value}"'
 
     url = f"{invenio_base_url}/api/records"
     headers = {
@@ -133,7 +133,7 @@ def search_record_exact(value):
         print(f"Error en la búsqueda: {response.status_code}", response.json())
         return None
 
-def create_or_update_record(record, record_id=None, subfolder_path=''):
+def create_or_update_record(record, record_id=None, subfolder_path='', bitstreams=None):
     """
     Crea un nuevo registro o actualiza un borrador existente en InvenioRDM.
     
@@ -150,7 +150,7 @@ def create_or_update_record(record, record_id=None, subfolder_path=''):
     }
 
     if record_id is None:
-        return create_record(record, subfolder_path)
+        return create_record(record, subfolder_path, bitstreams)
     else:
         # Actualizar un draft existente
         # Primero, asegurarse de que exista un draft. Si el registro está publicado,
@@ -186,7 +186,7 @@ def create_or_update_record(record, record_id=None, subfolder_path=''):
 
 
 # Función para crear un nuevo registro en InvenioRDM
-def create_record(record, subfolder_path):
+def create_record(record, subfolder_path='', bitstreams=None):
     url = f"{invenio_base_url}/api/records"
     headers = {
         'Content-Type': 'application/json',
@@ -197,10 +197,11 @@ def create_record(record, subfolder_path):
     if response.status_code == 201:
         record_id = response.json()["id"]
         print("Registro creado con éxito:", record_id)
-        file = upload_files(record_id, get_files_in_subfolder(subfolder_path))
-        if file:
-            commit_files(record_id, file)
-            publish_record(record_id)
+        if bitstreams:
+            file = upload_files(record_id, bitstreams) # get_files_in_subfolder(subfolder_path))
+            if file:
+                commit_files(record_id, file)
+                publish_record(record_id)
         return record_id
     else:
         print("Error al crear el registro:", response.status_code)

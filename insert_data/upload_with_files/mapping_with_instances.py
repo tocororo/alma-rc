@@ -3,7 +3,7 @@ from reprlib import recursive_repr
 import idutils
 import idutils.detectors
 from lxml import etree
-from mapping_classes import *
+from insert_data.invenio_record import *
 import requests
 
 from rapidfuzz import process, fuzz
@@ -310,7 +310,7 @@ def xml_oai_dc_to_invenio_record(xml_path: str) -> InveniordmRecordSchemaV600:
         else:
             creators.append(Creator(person_or_org=PersonOrOrg(name=el.text, type=NameType.personal, family_name=family_name, given_name=given_name)))
         
-    # TODO: los roles, solo estamos manejando los creators, pero son mas... 
+    # TODO: resolver el problema de los roles, pero son mas... 
     
 
     # Subjects

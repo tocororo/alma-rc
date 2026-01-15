@@ -2,7 +2,7 @@ import os
 import trace
 import traceback
 from mapping_with_instances import load_invenio_from_folder, xml_oai_dc_to_invenio_record
-from export_docs import create_or_update_record, create_record, delete_all_records_and_drafts, search_record_exact, upload_files, commit_files, publish_record
+from insert_data.invenio_actions import create_or_update_record, create_record, delete_all_records_and_drafts, search_record_exact, upload_files, commit_files, publish_record
 import json
 
 def start_migration(base_path):
@@ -30,7 +30,7 @@ def start_migration(base_path):
                     print(rc_handle)
 
                     record_id = None
-                    record_id = search_record_exact(rc_handle)
+                    record_id = search_record_exact('metadata.identifiers.identifier', rc_handle)
                     if record_id is not None:
                         count+=1
                     else:

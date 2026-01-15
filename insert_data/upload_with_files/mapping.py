@@ -2,7 +2,7 @@ import xml.etree.ElementTree as ET
 import json
 import sys
 
-from mapping_classes import *
+from insert_data.invenio_record import *
 
 
 def getCreators():
