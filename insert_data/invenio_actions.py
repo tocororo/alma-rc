@@ -1,279 +1,347 @@
-
-import requests
+"""InvenioRDM API client with improved error handling and logging."""
+from columns import *
 import json
+import logging
 import os
+from typing import Dict, List, Optional, Any
+import requests
+
+from columns import INVENIO_API_CONFIG
+
+logger = logging.getLogger(__name__)
 
 
-# invenio_base_url = 'https://inveniordm.web.cern.ch'  # URL de tu instancia de InvenioRDM
-# token = 'hnnwcph9ceru5M8oGQQs40XrhihjvAWgOni35mPOCitZ8ubHndcgfgIV6cgl'  # Token de acceso para la API
-
-
-invenio_base_url = 'https://127.0.0.1:5000'  # URL de tu instancia de InvenioRDM
-token = 'tkK2nd6u4jOPjk4KoUOcFLidxlg3IFnSHdM7C5xNrfiuSR9fXNYEheVUKNnt'  # Token de acceso para la API
-
-
-
-
-def get_files_in_subfolder(subfolder):
-    files_folder = os.path.join(subfolder, 'files')
-    if not os.path.isdir(files_folder):
-        return []
-    file_paths = []
-    for root, _, files in os.walk(subfolder):
-        for file in files:
-            file_paths.append(os.path.join(root, file))
-    return file_paths
+class InvenioClient:
+    """Client for interacting with InvenioRDM API."""
     
-
-
-def delete_all_records_and_drafts():
-    headers = {
-        'Authorization': f'Bearer {token}'
-    }
-
-    # Fetch all records (published + drafts)
-    # Use size=1000 or more if you have many records
-    url = f"{invenio_base_url}/api/records"
-    params = {'size': 1000}
-
-    response = requests.get(url, headers=headers, params=params, verify=False)
-    if response.status_code != 200:
-        print("❌ Failed to fetch records:", response.status_code, response.json())
-        return
-
-    records = response.json().get('hits', {}).get('hits', [])
-    print(f"Found {len(records)} records (published or drafts).")
-
-    for record in records:
-        rec_id = record['id']
-        is_published = 'pid' in record  # Simplified check; better: check 'is_published' if available
-        # In InvenioRDM, drafts have 'is_draft': True; published records don't have that or have 'is_published': True
-        is_draft = record.get('is_draft', False)
-
-        print(f"\nProcessing record ID: {rec_id} | Draft: {is_draft}")
-
+    def __init__(self, base_url: Optional[str] = None, token: Optional[str] = None):
+        """Initialize Invenio client.
+        
+        Args:
+            base_url: Invenio API base URL
+            token: API authentication token
+        """
+        self.base_url = base_url or INVENIO_API_CONFIG['base_url']
+        self.token = token or INVENIO_API_CONFIG['token']
+        self.headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {self.token}'
+        }
+    
+    def _make_request(self, method: str, endpoint: str, **kwargs) -> Optional[requests.Response]:
+        """Make HTTP request with error handling."""
+        url = f"{self.base_url}{endpoint}"
+        
         try:
-            if is_draft:
-                # Delete draft directly
-                delete_url = f"{invenio_base_url}/api/records/{rec_id}/draft"
-                resp = requests.delete(delete_url, headers=headers, verify=False)
-                if resp.status_code == 204:
-                    print(f"✅ Draft {rec_id} deleted.")
-                else:
-                    print(f"❌ Failed to delete draft {rec_id}: {resp.status_code}")
-            else:
-                # Published record: must create a draft first, then delete it
-                print(f"  → Creating draft for published record {rec_id}...")
-                draft_url = f"{invenio_base_url}/api/records/{rec_id}/draft"
-                resp = requests.post(draft_url, headers=headers, verify=False)
-                if resp.status_code not in (201, 400):  # 400 may mean draft already exists
-                    print(f"  ⚠️ Warning: Could not create draft (status {resp.status_code})")
-
-                # Now delete the draft (this deletes the entire record)
-                delete_url = f"{invenio_base_url}/api/records/{rec_id}/draft"
-                resp = requests.delete(delete_url, headers=headers, verify=False)
-                if resp.status_code == 204:
-                    print(f"✅ Published record {rec_id} deleted via draft.")
-                else:
-                    print(f"❌ Failed to delete published record {rec_id}: {resp.status_code}")
-
-        except Exception as e:
-            print(f"💥 Error processing {rec_id}: {e}")
-
-    print("\n✅ Deletion process completed.")
-
-
-# with open('example.json') as f:
-#     records = json.load(f)
-
-# # files_to_upload = ['path/to/your/file1.txt', 'path/to/your/file2.txt']
-# files_to_upload = ['photo.png']
-
-def search_record_exact(field, value):
-    """
-    Busca un registro en InvenioRDM con coincidencia exacta en un campo de metadatos.
+            response = requests.request(method, url, headers=self.headers, verify=False, **kwargs)
+            response.raise_for_status()
+            return response
+        except requests.RequestException as e:
+            logger.error(f"HTTP error {method} {url}: {e}")
+            if hasattr(e, 'response') and e.response:
+                logger.error(f"Response: {e.response.text}")
+            return None
     
-    Parámetros:
-        field_path (str): Ruta del campo en el esquema de metadatos (e.g., 'metadata.custom_id', 'metadata.title').
-                          Para coincidencia exacta, se recomienda usar '.keyword' si el campo lo soporta.
-        value (str): Valor exacto a buscar.
+    def _ensure_draft_exists(self, record_id: str) -> Optional[str]:
+        """Get the ID of a draft for the given record. Creates one if it doesn't exist.
+        
+        Returns:
+            The draft record ID, or None on failure.
+        """
+        # First, try to get the existing draft
+        draft_response = self._make_request('GET', f'/api/records/{record_id}/draft')
+        if draft_response and draft_response.status_code == 200:
+            # Draft exists, return its ID (same as the parent record)
+            logger.info(f"Found existing draft for record {record_id}")
+            return record_id
+        
+        # If no draft (likely a published record), create one
+        logger.info(f"No existing draft for {record_id}. Creating a new draft...")
+        draft_create_response = self._make_request('POST', f'/api/records/{record_id}/draft')
+        
+        if draft_create_response and draft_create_response.status_code in (201, 200):
+            # A 201 means a new draft was created. A 200 might mean one was already created.
+            logger.info(f"Successfully created draft for record {record_id}")
+            return record_id
+        
+        # Handle specific case: draft may already exist but with a different ID? (Edge case)
+        # The API typically reuses the same ID for the draft of a published record.
+        logger.error(f"Failed to create or retrieve draft for record {record_id}")
+        return None
+
+    def delete_all_records_and_drafts(self) -> None:
+        """Delete all records and drafts from InvenioRDM instance."""
+        logger.warning("Starting deletion of all records and drafts")
+        
+        records = self._fetch_all_records()
+        if not records:
+            logger.info("No records found to delete")
+            return
+        
+        logger.info(f"Found {len(records)} records to delete")
+        
+        for record in records:
+            self._delete_record(record)
+        
+        logger.info("Deletion process completed")
     
-    Retorna:
-        str or None: ID del primer registro coincidente, o None si no se encuentra.
-    """
-    # Usar comillas para forzar coincidencia exacta en la API de búsqueda
-    # Si el campo está mapeado como 'keyword', usa field_path + '.keyword'
-
-
-    # Escapar comillas en el valor para evitar inyección en la query
+    def _fetch_all_records(self) -> List[Dict]:
+        """Fetch all records from InvenioRDM."""
+        response = self._make_request('GET', '/api/records', params={'size': 1000})
+        if not response:
+            return []
+        return response.json().get('hits', {}).get('hits', [])
     
-    query = f'{field}:"{value}"'
-
-    url = f"{invenio_base_url}/api/records"
-    headers = {
-        'Authorization': f'Bearer {token}'
-    }
-    params = {
-        'q': query,
-        'size': 1  # Solo necesitamos un resultado si buscamos por identificador único
-    }
-
-    response = requests.get(url, headers=headers, params=params, verify=False)
+    def _delete_record(self, record: Dict) -> None:
+        """Delete a single record or draft."""
+        record_id = record['id']
+        is_draft = record.get('is_draft', False)
+        
+        logger.info(f"Processing record {record_id} (draft: {is_draft})")
+        
+        if is_draft:
+            self._delete_draft(record_id)
+        else:
+            self._delete_published_record(record_id)
     
-    if response.status_code == 200:
+    def _delete_draft(self, record_id: str) -> None:
+        """Delete a draft record."""
+        response = self._make_request('DELETE', f'/api/records/{record_id}/draft')
+        if response and response.status_code == 204:
+            logger.info(f"Deleted draft {record_id}")
+        else:
+            logger.error(f"Failed to delete draft {record_id}")
+    
+    def _delete_published_record(self, record_id: str) -> None:
+        """Delete a published record by creating and deleting a draft."""
+        # Create draft from published record
+        response = self._make_request('POST', f'/api/records/{record_id}/draft')
+        if not response or response.status_code not in (201, 400):
+            logger.error(f"Failed to create draft for published record {record_id}")
+            return
+        
+        # Delete the draft
+        self._delete_draft(record_id)
+    
+    def search_record_exact(self, field: str, value: str) -> Optional[str]:
+        """Search for record with exact field value match.
+        
+        Args:
+            field: Field path in metadata schema
+            value: Exact value to search for
+            
+        Returns:
+            Record ID if found, None otherwise
+        """
+        query = f'{field}:"{value}"'
+        response = self._make_request('GET', '/api/records', params={'q': query, 'size': 1})
+        
+        if not response:
+            return None
+        
         hits = response.json().get('hits', {}).get('hits', [])
         if hits:
             record_id = hits[0]['id']
-            print(f"Registro encontrado con {value} = '{value}': {record_id}")
+            logger.info(f"Found record with {field}='{value}': {record_id}")
             return record_id
-        else:
-            print(f"No se encontró ningún registro con {value} = '{value}'")
-            return None
-    else:
-        print(f"Error en la búsqueda: {response.status_code}", response.json())
+        
+        logger.debug(f"No record found with {field}='{value}'")
         return None
-
-def create_or_update_record(record, record_id=None, subfolder_path='', bitstreams=None):
-    """
-    Crea un nuevo registro o actualiza un borrador existente en InvenioRDM.
     
-    Parámetros:
-        record (dict): Metadatos del registro en formato JSON.
-        record_id (str, optional): ID del registro a actualizar. Si es None, se crea uno nuevo.
-    
-    Retorna:
-        str or None: El ID del registro creado o actualizado, o None si falla.
-    """
-    headers = {
-        'Content-Type': 'application/json',
-        'Authorization': f'Bearer {token}'
-    }
-
-    if record_id is None:
-        return create_record(record, subfolder_path, bitstreams)
-    else:
-        # Actualizar un draft existente
-        # Primero, asegurarse de que exista un draft. Si el registro está publicado,
-        # se debe crear una nueva versión antes de actualizar.
-        draft_url = f"{invenio_base_url}/api/records/{record_id}/draft"
-        response = requests.put(draft_url, headers=headers, data=json.dumps(record), verify=False)
-
-        if response.status_code == 200:
-            print(f"Borrador actualizado con éxito: {record_id}")
-            return record_id
-        elif response.status_code == 404:
-            # No existe un draft; intentar crear una nueva versión si el registro existe
-            print(f"No se encontró un borrador para {record_id}. Intentando crear una nueva versión...")
-            version_url = f"{invenio_base_url}/api/records/{record_id}/versions"
-            version_response = requests.post(version_url, headers=headers, verify=False)
-            if version_response.status_code == 201:
-                new_draft_id = version_response.json()["id"]
-                # Ahora actualizar el nuevo draft
-                draft_url = f"{invenio_base_url}/api/records/{new_draft_id}/draft"
-                update_response = requests.put(draft_url, headers=headers, data=json.dumps(record), verify=False)
-                if update_response.status_code == 200:
-                    print(f"Nueva versión creada y actualizada: {new_draft_id}")
-                    return new_draft_id
-                else:
-                    print("Error al actualizar la nueva versión:", update_response.status_code, update_response.json())
-                    return None
-            else:
-                print("Error al crear nueva versión:", version_response.status_code, version_response.json())
-                return None
+    def create_or_update_record(self, record: Dict, record_id: Optional[str] = None,
+                              bitstreams: Optional[List[str]] = None) -> Optional[str]:
+        """Create or update a record in InvenioRDM.
+        
+        Args:
+            record: Record metadata as dictionary
+            record_id: Existing record ID for updates
+            bitstreams: List of bitstream file paths
+            
+        Returns:
+            Record ID if successful, None otherwise
+        """
+        if record_id is None:
+            # CREATE: A brand new record
+            return self._create_record(record, bitstreams)
         else:
-            print("Error al actualizar el borrador:", response.status_code, response.json())
+            # UPDATE: An existing record (published or draft)
+            return self._update_record(record_id, record, bitstreams)
+           
+    def _create_record(self, record: Dict, bitstreams: Optional[List[str]]) -> Optional[str]:
+        """Create a new record."""
+        response = self._make_request('POST', '/api/records', data=json.dumps(record))
+        
+        if not response or response.status_code != 201:
+            logger.error(f"Failed to create record")
             return None
-
-
-# Función para crear un nuevo registro en InvenioRDM
-def create_record(record, subfolder_path='', bitstreams=None):
-    url = f"{invenio_base_url}/api/records"
-    headers = {
-        'Content-Type': 'application/json',
-        'Authorization': f'Bearer {token}'
-    }
-    print(json.dumps(record))
-    response = requests.post(url, headers=headers, data=json.dumps(record), verify=False)
-    if response.status_code == 201:
+        
         record_id = response.json()["id"]
-        print("Registro creado con éxito:", record_id)
+        logger.info(f"Created record: {record_id}")
+        
         if bitstreams:
-            file = upload_files(record_id, bitstreams) # get_files_in_subfolder(subfolder_path))
-            if file:
-                commit_files(record_id, file)
-                publish_record(record_id)
+            self._upload_and_publish_files(record_id, bitstreams)
+        
         return record_id
-    else:
-        print("Error al crear el registro:", response.status_code)
-        print("Error al crear el registro:", response)
-        print("Error al crear el registro:", response.json())
-        return None
+    
+    def _update_record(self, record_id: str, record: Dict, bitstreams: Optional[List[str]] = None) -> Optional[str]:
+        """Update an existing record by working on its draft, then publishing.
         
-
-# Función para subir archivos a un registro en InvenioRDM
-def upload_files(record_id, files):
-    url = f"{invenio_base_url}/api/records/{record_id}/draft/files"
-    headers = {
-        'Content-Type': 'application/json',
-        'Authorization': f'Bearer {token}'
-    }
-    for file_path in files:
-        file_name = os.path.basename(file_path)
-        data = [{'key' : file_name}]
-        response = requests.post(url, headers=headers, data=json.dumps(data), verify=False)
-
-        if response.status_code == 201:
-            print(f"Archivo {file_name} subido con éxito al registro {record_id}.")
+        This workflow updates the record WITHOUT creating a new version number.
+        """
+        # STEP 1: Ensure we have a draft to work with
+        draft_id = self._ensure_draft_exists(record_id)
+        if not draft_id:
+            logger.error(f"Cannot proceed with update. Could not get/create draft for {record_id}")
+            return None
+        
+        # STEP 2: Update the draft with new metadata
+        logger.info(f"Updating draft metadata for {draft_id}")
+        update_response = self._make_request('PUT', f'/api/records/{draft_id}/draft',
+                                             data=json.dumps(record))
+        
+        if not update_response or update_response.status_code != 200:
+            logger.error(f"Failed to update draft metadata for {draft_id}")
+            return None
+        
+        # STEP 3: Handle file uploads if any
+        if bitstreams:
+            self._upload_and_publish_files(draft_id, bitstreams, publish_after=False)
+        
+        # STEP 4: Publish the draft to finalize the update
+        logger.info(f"Publishing updated draft {draft_id}")
+        publish_response = self._make_request('POST', f'/api/records/{draft_id}/draft/actions/publish')
+        
+        if publish_response and publish_response.status_code == 202:
+            logger.info(f"Successfully updated and published record {draft_id}")
+            return draft_id
         else:
-            print(f"Error al subir el archivo {file_name}:", response.json())
-            return
+            logger.error(f"Failed to publish draft {draft_id}. Record is left in draft state.")
+            return None
+    
+    def _create_new_version(self, record_id: str, record: Dict) -> Optional[str]:
+        """Create a new version of a published record."""
+        response = self._make_request('POST', f'/api/records/{record_id}/versions')
         
+        if not response or response.status_code != 201:
+            logger.error(f"Failed to create new version for {record_id}")
+            return None
+        
+        new_draft_id = response.json()["id"]
+        logger.info(f"Created new version: {new_draft_id}")
+        
+        # Update the new draft
+        return self._update_record(new_draft_id, record)
+    
+    def _upload_and_publish_files(self, record_id: str, file_paths: List[str], publish_after: bool = True) -> None:
+        """Upload files to a record's draft.
+        
+        Args:
+            record_id: The record (or draft) ID.
+            file_paths: List of file paths to upload.
+            publish_after: If True, publish the record after uploading files.
+        """
+        for file_path in file_paths:
+            if self._upload_file(record_id, file_path):
+                if publish_after:
+                    self._publish_record(record_id)
+    
+    def _upload_file(self, record_id: str, file_path: str) -> Optional[str]:
+        """Upload a single file to a record."""
+        file_name = os.path.basename(file_path)
+        
+        # Initiate file upload
+        upload_data = [{'key': file_name}]
+        response = self._make_request('POST', f'/api/records/{record_id}/draft/files',
+                                     data=json.dumps(upload_data))
+        
+        if not response or response.status_code != 201:
+            logger.error(f"Failed to initiate upload for {file_name}")
+            return None
+        
+        # Upload file content
         content_headers = {
             'Content-Type': 'application/octet-stream',
-            'Authorization': f'Bearer {token}'
+            'Authorization': f'Bearer {self.token}'
         }
-        url = f"{invenio_base_url}/api/records/{record_id}/draft/files/{file_name}/content"
+        
         with open(file_path, 'rb') as file:
-            response = requests.put(url, headers=content_headers, data=file, verify=False)
-            
-        if response.status_code == 200:
-            print(f"Archivo {file_name} confirmado para el registro {record_id}.")
+            upload_response = requests.put(
+                f'{self.base_url}/api/records/{record_id}/draft/files/{file_name}/content',
+                headers=content_headers,
+                data=file,
+                verify=False
+            )
+        
+        if upload_response.status_code == 200:
+            logger.info(f"Uploaded file {file_name}")
+            self._commit_file(record_id, file_name)
             return file_name
+        
+        logger.error(f"Failed to upload file {file_name}")
+        return None
+    
+    def _commit_file(self, record_id: str, file_name: str) -> None:
+        """Commit an uploaded file."""
+        response = self._make_request('POST', 
+                                     f'/api/records/{record_id}/draft/files/{file_name}/commit')
+        if response and response.status_code == 200:
+            logger.info(f"Committed file {file_name}")
+    
+    def _publish_record(self, record_id: str) -> None:
+        """Publish a record draft."""
+        response = self._make_request('POST', 
+                                     f'/api/records/{record_id}/draft/actions/publish')
+        if response and response.status_code == 202:
+            logger.info(f"Published record {record_id}")
         else:
-            print(f"Error al confirmar el archivo {file_name}:", response.json())
-            return    
+            logger.error(f"Failed to publish record {record_id}")
 
-# Función para confirmar la subida de archivos en InvenioRDM
-def commit_files(record_id, file):
-    url = f"{invenio_base_url}/api/records/{record_id}/draft/files/{file}/commit"
-    headers = {
-        'Authorization': f'Bearer {token}'
-    }
-    response = requests.post(url, headers=headers, verify=False)
-    if response.status_code == 200:
-        print(f"Archivos confirmados para el registro {record_id}.")
-    else:
-        print(f"Error al confirmar los archivos para el registro {record_id}:", response.json())
 
-# Función para publicar un registro en InvenioRDM
-def publish_record(record_id):
-    url = f"{invenio_base_url}/api/records/{record_id}/draft/actions/publish"
-    headers = {
-        'Content-Type': 'application/json',
-        'Authorization': f'Bearer {token}'
-    }
-    response = requests.post(url, headers=headers, verify=False)
-    if response.status_code == 202:
-        print(f"Registro {record_id} publicado con éxito.")
-    else:
-        print(f"Error al publicar el registro {record_id}:", response.json())
+# Global client instance for backward compatibility
+_client = InvenioClient()
 
-# Crear y publicar los registros en InvenioRDM
 
-# for record in records:
-#     record_id = create_record(record)
-#     if record_id:
-#         file = upload_files(record_id, files_to_upload)
-#         if file:
-#             commit_files(record_id, file)
-#             publish_record(record_id)
+def delete_all_records_and_drafts():
+    """Backward compatibility wrapper."""
+    _client.delete_all_records_and_drafts()
+
+
+def search_record_exact(field: str, value: str) -> Optional[str]:
+    """Backward compatibility wrapper."""
+    return _client.search_record_exact(field, value)
+
+
+def create_or_update_record(record: Dict, record_id: Optional[str] = None,
+                          subfolder_path: str = '', 
+                          bitstreams: Optional[List[str]] = None) -> Optional[str]:
+    """Backward compatibility wrapper."""
+    return _client.create_or_update_record(record, record_id, bitstreams)
+
+
+def create_record(record: Dict, subfolder_path: str = '', 
+                 bitstreams: Optional[List[str]] = None) -> Optional[str]:
+    """Backward compatibility wrapper."""
+    return _client.create_or_update_record(record, bitstreams=bitstreams)
+
+
+def upload_files(record_id: str, files: List[str]) -> Optional[str]:
+    """Backward compatibility wrapper.
+    
+    Note: This function has different behavior than the refactored version.
+    It returns the first successfully uploaded filename.
+    """
+    for file_path in files:
+        file_name = _client._upload_file(record_id, file_path)
+        if file_name:
+            return file_name
+    return None
+
+
+def commit_files(record_id: str, file_name: str) -> None:
+    """Backward compatibility wrapper."""
+    _client._commit_file(record_id, file_name)
+
+
+def publish_record(record_id: str) -> None:
+    """Backward compatibility wrapper."""
+    _client._publish_record(record_id)

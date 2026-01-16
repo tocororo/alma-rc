@@ -20,7 +20,8 @@ dependencies = [
     "idutils (>=1.5.0,<2.0.0)",
     "rapidfuzz (>=3.14.1,<4.0.0)",
     "pandas (>=2.3.3,<3.0.0)",
-    "pycountry (>=24.6.1,<25.0.0)"
+    "pycountry (>=24.6.1,<25.0.0)",
+    "dateparser (>=1.2.2,<2.0.0)"
 ]
 
 
