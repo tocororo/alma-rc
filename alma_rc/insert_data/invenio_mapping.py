@@ -10,23 +10,22 @@ import pycountry
 import idutils.detectors
 from rapidfuzz import process, fuzz
 import requests
-from columns import *
-from invenio_record import *
-from columns import (
-    RESOURCE_TYPE_MAP, THESIS_COLLECTION_MAP, EXTERNAL_PROGRAM_COLLECTIONS,
-    UPR_SUBJECT_MAP, UPR_ENTITIES, LANGUAGE_VARIANTS, DATE_TYPE_MAP,
-    FIELD_SEPARATORS
-)
+import urllib
+from alma_rc.insert_data.invenio_record import *
+
+from alma_rc.config import Config
 
 logger = logging.getLogger(__name__)
-
 
 class DSpaceToInvenioMapper:
     """Mapper for converting DSpace records to Invenio format."""
     
     DEFAULT_PUBLISHER = 'Universidad de Pinar del Río "Hermanos Saíz Montes de Oca"'
-    NAME_API_URL = "https://127.0.0.1:5000/api/names"
+    NAME_API_URL = f"{Config.INVENIO_API_BASE_URL}/api/names"
+    TOKEN =  Config.INVENIO_API_TOKEN
+    HEADERS = Config.get_headers()
     
+
     @staticmethod
     def process_dspace_row(row: pd.Series) -> Tuple[Optional[str], Optional[str], 
                                                    Optional[InveniordmRecordSchemaV600]]:
@@ -150,7 +149,7 @@ class DSpaceToInvenioMapper:
         for field_name in field_names:
             if field_name in row and not pd.isna(row[field_name]):
                 value = str(row[field_name]).strip()
-                names = [name.strip() for name in value.split(FIELD_SEPARATORS['multi_value']) 
+                names = [name.strip() for name in value.split(Config.MULTI_VALUE_SEPARATOR) 
                         if name.strip()]
                 
                 for name in names:
@@ -204,18 +203,27 @@ class DSpaceToInvenioMapper:
     @staticmethod
     def _find_person_in_invenio(family_name: str, given_name: str) -> Optional[Dict]:
         """Search for person in InvenioRDM names API."""
-        query = f'(family_name:"{family_name}")AND(given_name:"{given_name}")'
-        
+        query = f'family_name:"{family_name}"&given_name:"{given_name}"'
         try:
+            logger.debug(f"Searching for person: {given_name} {family_name}")
+            logger.debug(f"Query: {query}")
+            logger.debug(f"API URL: {DSpaceToInvenioMapper.NAME_API_URL}")
+            
             response = requests.get(
                 DSpaceToInvenioMapper.NAME_API_URL,
+                headers=DSpaceToInvenioMapper.HEADERS,
                 params={"q": query},
-                verify=False
+                verify=False,
+                timeout=10
             )
+            
+            logger.debug(f"Response status: {response.status_code}")
             response.raise_for_status()
             
             data = response.json()
             hits = data.get("hits", {}).get("hits", [])
+            
+            logger.debug(f"Found {len(hits)} matches")
             
             if len(hits) == 1:
                 return hits[0]
@@ -233,7 +241,7 @@ class DSpaceToInvenioMapper:
         for field_name in subject_fields:
             if field_name in row and not pd.isna(row[field_name]):
                 value = str(row[field_name]).strip()
-                subjects_list = [s.strip() for s in value.split(FIELD_SEPARATORS['multi_value']) 
+                subjects_list = [s.strip() for s in value.split(Config.MULTI_VALUE_SEPARATOR) 
                                if s.strip()]
                 
                 for subject in subjects_list:
@@ -297,10 +305,10 @@ class DSpaceToInvenioMapper:
         """Map DSpace resource type to Invenio resource type ID."""
         if dspace_type:
             dspace_type_lower = dspace_type.lower().strip()
-            invenio_type = RESOURCE_TYPE_MAP.get(dspace_type_lower, 'publication')
+            invenio_type = Config.RESOURCE_TYPE_MAP.get(dspace_type_lower, 'publication')
         
-        if collection in THESIS_COLLECTION_MAP:
-            invenio_type = THESIS_COLLECTION_MAP.get(collection, 'thesis')
+        if collection in Config.THESIS_COLLECTION_MAP:
+            invenio_type = Config.THESIS_COLLECTION_MAP.get(collection, 'thesis')
         
         return invenio_type
     
@@ -313,7 +321,7 @@ class DSpaceToInvenioMapper:
         for field_name in language_fields:
             if field_name in row and not pd.isna(row[field_name]):
                 value = str(row[field_name]).strip()
-                langs = [lang.strip() for lang in value.split(FIELD_SEPARATORS['language']) 
+                langs = [lang.strip() for lang in value.split(Config.LANGUAGE_SEPARATOR) 
                         if lang.strip()]
                 
                 for lang in langs:
@@ -343,7 +351,7 @@ class DSpaceToInvenioMapper:
         # Check language variants
         language_lower = language.lower()
         
-        for lang_name, variants in LANGUAGE_VARIANTS.items():
+        for lang_name, variants in DSpaceToInvenioMapper.LANGUAGE_VARIANTS.items():
             if any(variant in language_lower for variant in variants):
                 return 'spa' if lang_name == 'spanish' else 'eng'
         
@@ -369,7 +377,7 @@ class DSpaceToInvenioMapper:
         """Extract additional dates from DSpace row and convert to EDTF format."""
         dates = []
         
-        for dspace_field, date_type in DATE_TYPE_MAP.items():
+        for dspace_field, date_type in Config.DATE_TYPE_MAP.items():
             if dspace_field in row and not pd.isna(row[dspace_field]):
                 original_value = str(row[dspace_field]).strip()
                 if not original_value:
@@ -421,7 +429,7 @@ class DSpaceToInvenioMapper:
         for field_name in location_fields:
             if field_name in row and not pd.isna(row[field_name]):
                 value = str(row[field_name]).strip()
-                locations = [loc.strip() for loc in value.split(FIELD_SEPARATORS['language']) 
+                locations = [loc.strip() for loc in value.split(Config.MULTI_VALUE_SEPARATOR) 
                            if loc.strip()]
                 
                 for location in locations:
@@ -467,7 +475,7 @@ class DSpaceToInvenioMapper:
             if field_name in row and not pd.isna(row[field_name]):
                 value = str(row[field_name]).strip()
                 if value:
-                    format_list = [f.strip() for f in value.split(FIELD_SEPARATORS['language']) 
+                    format_list = [f.strip() for f in value.split(Config.LANGUAGE_SEPARATOR) 
                                  if f.strip()]
                     formats.extend(format_list)
         
@@ -685,7 +693,7 @@ class DSpaceToInvenioMapper:
             upr_collection = collection.split('/')[1] if '/' in collection else ''
             match_collection = f'col_DICT_{upr_collection}'
             
-            if match_collection in EXTERNAL_PROGRAM_COLLECTIONS:
+            if match_collection in Config.EXTERNAL_PROGRAM_COLLECTIONS:
                 return 'externo'
         
         # Check publisher for university entities
@@ -710,7 +718,7 @@ class DSpaceToInvenioMapper:
         ).strip()
         
         search_text = clean_publisher or publisher_lower
-        titles = list(UPR_ENTITIES.values())
+        titles = list(Config.UPR_ENTITIES.values())
         
         result = process.extractOne(
             search_text, 
@@ -721,7 +729,7 @@ class DSpaceToInvenioMapper:
         
         if result:
             matched_title, score, index = result
-            for entity_id, title in UPR_ENTITIES.items():
+            for entity_id, title in Config.UPR_ENTITIES.items():
                 if title == matched_title:
                     return entity_id
         
@@ -736,7 +744,7 @@ class DSpaceToInvenioMapper:
             upr_collection = collection.split('/')[1]
             match_collection = f'col_DICT_{upr_collection}'
             
-            if match_collection in UPR_SUBJECT_MAP:
+            if match_collection in Config.UPR_SUBJECT_MAP:
                 subjects.append({'id': match_collection})
         
         return subjects

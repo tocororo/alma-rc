@@ -1,12 +1,11 @@
 """InvenioRDM API client with improved error handling and logging."""
-from columns import *
 import json
 import logging
 import os
 from typing import Dict, List, Optional, Any
 import requests
 
-from columns import INVENIO_API_CONFIG
+from alma_rc.config import Config
 
 logger = logging.getLogger(__name__)
 
@@ -21,12 +20,9 @@ class InvenioClient:
             base_url: Invenio API base URL
             token: API authentication token
         """
-        self.base_url = base_url or INVENIO_API_CONFIG['base_url']
-        self.token = token or INVENIO_API_CONFIG['token']
-        self.headers = {
-            'Content-Type': 'application/json',
-            'Authorization': f'Bearer {self.token}'
-        }
+        self.base_url = base_url or Config.INVENIO_API_BASE_URL
+        self.token = token or Config.INVENIO_API_TOKEN
+        self.headers = Config.get_headers()
     
     def _make_request(self, method: str, endpoint: str, **kwargs) -> Optional[requests.Response]:
         """Make HTTP request with error handling."""

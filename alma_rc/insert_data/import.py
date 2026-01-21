@@ -1,18 +1,26 @@
 """Main import script for transforming DSpace CSV to Invenio records."""
+
+import sys
+import os
+
+# Ensure the package can be imported correctly
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+
+
 from datetime import datetime
 import traceback
-from columns import *
 
 import csv
 import json
 import logging
-import os
+
 from typing import List, Optional, Tuple
 import pandas as pd
 
-from dspace_bitstream import DSpaceHarvester
-from invenio_mapping import process_dspace_row
-from invenio_actions import create_or_update_record, search_record_exact
+from alma_rc.config import Config
+from alma_rc.insert_data.dspace_bitstream import DSpaceHarvester
+from alma_rc.insert_data.invenio_mapping import process_dspace_row
+from alma_rc.insert_data.invenio_actions import create_or_update_record, search_record_exact
 
 logger = logging.getLogger(__name__)
 
@@ -69,9 +77,9 @@ def load_invenio_from_dspace_csv(csv_path: str, output_dir: Optional[str] = None
                 })
                 continue
             bitstream_results = None
-            # bitstream_results = harvester.process_record_with_bitstreams(
-            #     rc_record_id, handle, output_dir
-            # )
+            bitstream_results = harvester.process_record_with_bitstreams(
+                rc_record_id, handle, output_dir
+            )
             logger.debug(f"--------------------------------------------- {bitstream_results}")
             
             record_id = search_record_exact('metadata.identifiers.identifier', handle)
@@ -196,7 +204,7 @@ def setup_logging(log_level: str = "INFO") -> None:
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         handlers=[
             logging.StreamHandler(),
-            logging.FileHandler('import.log')
+            logging.FileHandler(f'{Config.DATA_DIR}/import.log')
         ]
     )
 

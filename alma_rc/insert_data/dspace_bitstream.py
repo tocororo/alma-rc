@@ -11,7 +11,7 @@ from typing import Dict, Optional
 from lxml import html
 import requests
 
-from columns import *
+from alma_rc.config import Config
 
 logger = logging.getLogger(__name__)
 
@@ -32,10 +32,10 @@ class DSpaceHarvester:
             timeout: HTTP request timeout in seconds
             delay: Base delay between requests in seconds
         """
-        self.timeout = timeout
-        self.delay = delay
+        self.timeout = timeout or Config.REQUEST_TIMEOUT
+        self.delay = delay or Config.REQUEST_DELAY
         self.session = requests.Session()
-        self.session.headers.update({'User-Agent': DEFAULT_USER_AGENT})
+        self.session.headers.update({'User-Agent': Config.DEFAULT_USER_AGENT})
         
     def random_sleep(self) -> None:
         """Add random delay between requests to avoid being blocked."""
@@ -57,7 +57,7 @@ class DSpaceHarvester:
         # Replace spaces with underscores
         filename = filename.replace(' ', '_')
         # Limit length
-        if len(filename) > MAX_FILENAME_LENGTH:
+        if len(filename) > Config.MAX_FILENAME_LENGTH:
             name, ext = os.path.splitext(filename)
             truncated_name = name[:150] + ext
             return truncated_name.strip()
