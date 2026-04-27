@@ -287,12 +287,11 @@ class ApacheHTTPScanner:
         li_items = tree.xpath("//ul[@id='items']/li[contains(@class,'item')]")
         if li_items:
             yield from self._parse_h5ai_li_items(li_items, url, relative_folder)
-        else:
-            # <ul id="items"> is JS-populated and empty in the initial response.
-            # Fall back to the generic link scanner, which works on whatever
-            # the server rendered (noscript fallback, plain hrefs, etc.).
-            logger.debug(f"h5ai items list empty, using autoindex fallback for {url}")
-            yield from self._scan_apache_autoindex(url, content, relative_folder)
+        # If the items list is empty the directory is either truly empty or h5ai
+        # is serving items via JS only. Either way there are no server-rendered
+        # records to return, so yield nothing. Falling back to the Apache
+        # autoindex parser here would scan h5ai's own HTML template and create
+        # spurious FileEntry records from UI links that are not real files.
 
     def _parse_h5ai_li_items(
         self, li_items: list, url: str, relative_folder: str
@@ -395,7 +394,7 @@ class ApacheHTTPScanner:
             full_url = urljoin(origin + "/", href.lstrip("/"))
             size: Optional[int] = item.get("size")  # None for directories
 
-            is_folder = href.endswith("/") or size is None
+            is_folder = href.endswith("/")
             if is_folder:
                 sub = f"{relative_folder}/{name}".lstrip("/")
                 yield from self._scan_url(full_url, sub)
