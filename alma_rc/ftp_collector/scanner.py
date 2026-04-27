@@ -267,9 +267,11 @@ class ApacheHTTPScanner:
         """Parse an h5ai directory listing.
 
         Strategy:
-        1. Locate the h5ai PHP backend and request items via JSON API.
-        2. If the API is unavailable, fall back to HTML parsing using
-           the server-side-rendered <li data-size="..."> elements.
+        1. Try the h5ai JSON API (requires PHP access — may be blocked).
+        2. Fall back to parsing whatever the server rendered as plain HTML.
+           h5ai always includes a <div id="fallback"> with plain <a href> links
+           for non-JS clients; the Apache AutoIndex parser handles these via its
+           generic <a href> path without relying on JS or PHP.
         """
         h5ai_root = self._find_h5ai_root(content)
         if h5ai_root:
@@ -278,45 +280,9 @@ class ApacheHTTPScanner:
                 yield from self._yield_h5ai_items(items, url, relative_folder)
                 return
 
-        # HTML fallback — h5ai renders <li class="item ..."> server-side
-        tree = html.fromstring(content)
-        base_path = urlparse(url).path
-
-        for li in tree.xpath('//li[contains(@class, "item")]'):
-            classes = li.get("class", "")
-            if "back" in classes or "separated" in classes:
-                continue
-
-            hrefs = li.xpath('.//a[contains(@class, "name")]/@href')
-            if not hrefs:
-                hrefs = li.xpath(".//a/@href")
-            if not hrefs:
-                continue
-
-            href = hrefs[0]
-            if href in ("../", "./", "/") or href.startswith("?"):
-                continue
-            if href.startswith("/") and not href.startswith(base_path):
-                continue
-
-            name = unquote(href.rstrip("/").split("/")[-1])
-            if not name:
-                continue
-            full_url = urljoin(url, href)
-
-            raw_size = li.get("data-size", "")
-            size = int(raw_size) if raw_size.isdigit() else None
-
-            is_folder = href.endswith("/") or "folder" in classes
-            if is_folder:
-                sub = f"{relative_folder}/{name}".lstrip("/")
-                yield from self._scan_url(full_url, sub)
-            else:
-                yield FileEntry(
-                    name=name, path=full_url,
-                    folder_path=relative_folder, size=size,
-                    repo_id=self.repo_id,
-                )
+        # API blocked or unavailable — parse the server-rendered HTML directly.
+        logger.debug(f"h5ai API unavailable for {url}, falling back to HTML parsing")
+        yield from self._scan_apache_autoindex(url, content, relative_folder)
 
     def _find_h5ai_root(self, content: bytes) -> Optional[str]:
         """Return the h5ai installation root path (e.g. '/_h5ai'), or None."""
