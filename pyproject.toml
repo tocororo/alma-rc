@@ -51,6 +51,7 @@ Issues = "https://github.com/tocororo/alma-rc/issues"
 
 [project.scripts]
 alma-rc = "alma_rc.insert_data.import:main"
+alma-rc-ftp = "alma_rc.ftp_collector.collector:main"
 
 [tool.black]
 line-length = 88
