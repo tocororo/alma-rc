@@ -268,10 +268,11 @@ class ApacheHTTPScanner:
 
         Strategy:
         1. Try the h5ai JSON API (requires PHP access — may be blocked).
-        2. Fall back to parsing whatever the server rendered as plain HTML.
-           h5ai always includes a <div id="fallback"> with plain <a href> links
-           for non-JS clients; the Apache AutoIndex parser handles these via its
-           generic <a href> path without relying on JS or PHP.
+        2. Fall back to parsing the server-rendered <ul id="items"> HTML, which
+           h5ai always emits for non-JS clients.  Each <li class="item file">
+           carries the file href and a <span class="size" data-bytes="N">.
+           Folders have class "item folder"; parent-dir links also have
+           "folder-parent" and are skipped.
         """
         h5ai_root = self._find_h5ai_root(content)
         if h5ai_root:
@@ -281,8 +282,56 @@ class ApacheHTTPScanner:
                 return
 
         # API blocked or unavailable — parse the server-rendered HTML directly.
-        logger.debug(f"h5ai API unavailable for {url}, falling back to HTML parsing")
-        yield from self._scan_apache_autoindex(url, content, relative_folder)
+        logger.debug(f"h5ai API unavailable for {url}, parsing h5ai HTML")
+        yield from self._scan_h5ai_html(url, content, relative_folder)
+
+    def _scan_h5ai_html(
+        self, url: str, content: bytes, relative_folder: str
+    ) -> Iterator[FileEntry]:
+        """Parse h5ai's <ul id='items'> server-rendered listing."""
+        tree = html.fromstring(content)
+
+        for li in tree.xpath("//ul[@id='items']/li[contains(@class,'item')]"):
+            classes = li.get("class", "")
+
+            # Skip the parent-directory navigation entry
+            if "folder-parent" in classes:
+                continue
+
+            a_elem = li.find(".//a")
+            if a_elem is None:
+                continue
+            href = a_elem.get("href", "")
+            if not href:
+                continue
+
+            name = unquote(href.rstrip("/").split("/")[-1])
+            if not name:
+                continue
+
+            full_url = urljoin(url, href)
+
+            # File size from data-bytes attribute on the <span class="size">
+            size: Optional[int] = None
+            span = li.find(".//span[@class='size']")
+            if span is not None:
+                db = span.get("data-bytes", "")
+                try:
+                    size = int(db)
+                except (ValueError, TypeError):
+                    pass
+
+            if "item file" in classes:
+                yield FileEntry(
+                    name=name,
+                    path=full_url,
+                    folder_path=relative_folder,
+                    size=size,
+                    repo_id=self.repo_id,
+                )
+            elif "item folder" in classes:
+                sub = f"{relative_folder}/{name}".lstrip("/")
+                yield from self._scan_url(full_url, sub)
 
     def _find_h5ai_root(self, content: bytes) -> Optional[str]:
         """Return the h5ai installation root path (e.g. '/_h5ai'), or None."""
