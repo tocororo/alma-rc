@@ -37,6 +37,8 @@ class RepoConfig:
     language: str = "spa"
     # Safety limit — set to None to process all files
     max_files: Optional[int] = None
+    # When True, build records and save to JSON but do NOT publish to InvenioRDM
+    dry_run: bool = False
 
 
 class FTPCollector:
@@ -64,8 +66,9 @@ class FTPCollector:
         Returns:
             List of result dicts with keys: source_url, invenio_id, title, resource_type.
         """
+        mode = "dry-run" if config.dry_run else "live"
         logger.info(
-            f"Starting collection for repo '{config.repo_id}' "
+            f"Starting collection [{mode}] for repo '{config.repo_id}' "
             f"({config.type}://{config.host})"
         )
         scanner = self._build_scanner(config)
@@ -80,19 +83,32 @@ class FTPCollector:
             result = self._process_entry(entry, config)
             if result:
                 results.append(result)
-                logger.info(
-                    f"[{config.repo_id}] {result['source_url']} → {result['invenio_id']}"
-                )
+                if config.dry_run:
+                    logger.info(f"[{config.repo_id}][dry-run] {result['source_url']}")
+                else:
+                    logger.info(
+                        f"[{config.repo_id}] {result['source_url']} → {result['invenio_id']}"
+                    )
             count += 1
 
+        action = "prepared (dry-run)" if config.dry_run else "inserted"
         logger.info(
             f"Repo '{config.repo_id}': scanned {count} files, "
-            f"inserted {len(results)} records"
+            f"{action} {len(results)} records"
         )
 
+        total_bytes = sum(r.get("size_bytes") or 0 for r in results)
         if output_path:
-            _save_json({"repo_id": config.repo_id, "total": len(results), "records": results},
-                       output_path)
+            _save_json(
+                {
+                    "repo_id": config.repo_id,
+                    "total": len(results),
+                    "total_size_bytes": total_bytes,
+                    "total_size": _format_bytes(total_bytes),
+                    "records": results,
+                },
+                output_path,
+            )
 
         return results
 
@@ -118,7 +134,12 @@ class FTPCollector:
 
         if output_path:
             summary = {
-                repo_id: {"total": len(records), "records": records}
+                repo_id: {
+                    "total": len(records),
+                    "total_size_bytes": sum(r.get("size_bytes") or 0 for r in records),
+                    "total_size": _format_bytes(sum(r.get("size_bytes") or 0 for r in records)),
+                    "records": records,
+                }
                 for repo_id, records in all_results.items()
             }
             _save_json(summary, output_path)
@@ -148,7 +169,7 @@ class FTPCollector:
         raise ValueError(f"Unknown repo type '{config.type}'. Use 'ftp' or 'http'.")
 
     def _process_entry(self, entry: FileEntry, config: RepoConfig) -> Optional[Dict]:
-        """Build and insert a metadata record for one file. No download takes place."""
+        """Build a metadata record for one file and optionally publish it to InvenioRDM."""
         try:
             record = build_invenio_record(
                 entry,
@@ -157,25 +178,46 @@ class FTPCollector:
                 language=config.language,
             )
             record_dict = json.loads(record.json(exclude_none=True))
+            metadata = record_dict.get("metadata", {})
+
+            result = {
+                "source_url": entry.path,
+                "title": metadata.get("title", ""),
+                "resource_type": metadata.get("resource_type", {}).get("id", ""),
+                "folder_path": entry.folder_path,
+                "size_bytes": entry.size,
+                "size": _format_bytes(entry.size) if entry.size is not None else None,
+                "record": record_dict,
+            }
+
+            if config.dry_run:
+                result["invenio_id"] = None
+                return result
+
             invenio_id = self.client.create_or_update_record(record=record_dict)
             if invenio_id:
-                return {
-                    "source_url": entry.path,
-                    "invenio_id": invenio_id,
-                    "title": record_dict.get("metadata", {}).get("title", ""),
-                    "resource_type": record_dict.get("metadata", {})
-                        .get("resource_type", {})
-                        .get("id", ""),
-                    "folder_path": entry.folder_path,
-                }
+                result["invenio_id"] = invenio_id
+                return result
+
         except Exception as e:
-            logger.error(f"Failed to insert '{entry.path}': {e}")
+            logger.error(f"Failed to process '{entry.path}': {e}")
         return None
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+def _format_bytes(n: Optional[int]) -> Optional[str]:
+    """Return a human-readable size string (e.g. '1.2 MB')."""
+    if n is None:
+        return None
+    for unit in ("B", "KB", "MB", "GB", "TB"):
+        if n < 1024:
+            return f"{n:.1f} {unit}"
+        n /= 1024
+    return f"{n:.1f} PB"
+
 
 def _save_json(data: object, path: str) -> None:
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
@@ -184,7 +226,7 @@ def _save_json(data: object, path: str) -> None:
     logger.info(f"Output saved to {path}")
 
 
-def _load_repos_from_json(path: str) -> List[RepoConfig]:
+def _load_repos_from_json(path: str, dry_run: bool = False) -> List[RepoConfig]:
     """Load repo configurations from a JSON file.
 
     Expected format::
@@ -213,7 +255,11 @@ def _load_repos_from_json(path: str) -> List[RepoConfig]:
     """
     with open(path, encoding="utf-8") as f:
         raw = json.load(f)
-    return [RepoConfig(**item) for item in raw]
+    configs = [RepoConfig(**item) for item in raw]
+    if dry_run:
+        for c in configs:
+            c.dry_run = True
+    return configs
 
 
 # ---------------------------------------------------------------------------
@@ -259,6 +305,11 @@ def main() -> None:
         default=None,
         help="Path for the JSON output file (default: <repo-id>_<timestamp>.json)",
     )
+    scan_cmd.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Build records and save to JSON without publishing to InvenioRDM",
+    )
     scan_cmd.add_argument("--log-level", default="INFO")
 
     # --- batch sub-command (JSON config file) ---
@@ -268,6 +319,11 @@ def main() -> None:
         "--output",
         default=None,
         help="Path for the JSON output file (default: batch_<timestamp>.json)",
+    )
+    batch_cmd.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Build records and save to JSON without publishing to InvenioRDM",
     )
     batch_cmd.add_argument("--log-level", default="INFO")
 
@@ -293,16 +349,19 @@ def main() -> None:
             publisher=args.publisher,
             language=args.language,
             max_files=args.max_files,
+            dry_run=args.dry_run,
         )
         results = collector.collect_repo(config, output_path=output_path)
-        print(f"\nInserted {len(results)} records. Output: {output_path}")
+        action = "Prepared (dry-run)" if args.dry_run else "Inserted"
+        print(f"\n{action} {len(results)} records. Output: {output_path}")
 
     elif args.command == "batch":
         output_path = args.output or f"batch_{timestamp}.json"
-        repos = _load_repos_from_json(args.config_file)
+        repos = _load_repos_from_json(args.config_file, dry_run=args.dry_run)
         all_results = collector.collect_all(repos, output_path=output_path)
         total = sum(len(v) for v in all_results.values())
-        print(f"\nTotal inserted: {total} records across {len(repos)} repos. Output: {output_path}")
+        action = "prepared (dry-run)" if args.dry_run else "inserted"
+        print(f"\nTotal {action}: {total} records across {len(repos)} repos. Output: {output_path}")
 
 
 if __name__ == "__main__":
