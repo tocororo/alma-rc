@@ -2,9 +2,10 @@
 import json
 import logging
 import os
+import sys
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 from alma_rc.ftp_collector.mapper import build_invenio_record
 from alma_rc.ftp_collector.scanner import ApacheHTTPScanner, FileEntry, FTPScanner
@@ -12,40 +13,123 @@ from alma_rc.insert_data.invenio_actions import InvenioClient
 
 logger = logging.getLogger(__name__)
 
+_W = 68  # display width
+
+
+# ---------------------------------------------------------------------------
+# Display helpers  (write to stderr so they share the stream with the logger)
+# ---------------------------------------------------------------------------
+
+def _out(msg: str = "") -> None:
+    print(msg, file=sys.stderr, flush=True)
+
+
+def _print_repo_header(config: "RepoConfig") -> None:
+    mode = "DRY-RUN" if config.dry_run else "LIVE"
+    url = config.base_url or f"{config.type}://{config.host}"
+    _out()
+    _out("=" * _W)
+    _out(f"  Repo   : {config.repo_id}")
+    _out(f"  URL    : {url}{config.start_path.rstrip('/') or '/'}")
+    _out(f"  Modo   : {mode}   Inicio: {datetime.now().strftime('%H:%M:%S')}")
+    _out("=" * _W)
+
+
+def _print_folder_change(folder: str) -> None:
+    label = folder.replace("/", "  /  ") if folder else "(raiz)"
+    _out()
+    _out(f"  >> {label}")
+    _out()
+
+
+def _print_file_ok(count: int, result: Dict) -> None:
+    rtype = (result.get("resource_type") or "other")[:15]
+    size  = (result.get("size") or "?").rjust(10)
+    title = result.get("title") or result.get("source_url", "")
+    title = title[:42]
+    _out(f"    #{count:04d}  {rtype:<16} {size}  {title}")
+
+
+def _print_file_error(count: int, entry: FileEntry) -> None:
+    _out(f"    #{count:04d}  {'ERROR':<16} {'?':>10}  {entry.name}  [fallo al procesar]")
+
+
+def _print_repo_summary(
+    config: "RepoConfig",
+    scanned: int,
+    results: List[Dict],
+    errors: int,
+    total_bytes: int,
+    output_path: Optional[str],
+) -> None:
+    action = "Preparados (dry)" if config.dry_run else "Insertados"
+    _out()
+    _out("-" * _W)
+    _out(f"  RESUMEN  {config.repo_id}")
+    _out(f"  Escaneados  : {scanned}")
+    _out(f"  {action:<12}: {len(results)}")
+    if errors:
+        _out(f"  Errores     : {errors}")
+    _out(f"  Peso total  : {_format_bytes(total_bytes)}")
+    if output_path:
+        _out(f"  Guardado en : {output_path}")
+    _out("-" * _W)
+    _out()
+
+
+def _print_batch_summary(
+    all_results: Dict[str, List[Dict]],
+    output_path: Optional[str],
+    dry_run: bool,
+) -> None:
+    total_files  = sum(len(v) for v in all_results.values())
+    total_bytes  = sum(
+        sum(r.get("size_bytes") or 0 for r in v) for v in all_results.values()
+    )
+    action = "preparados (dry)" if dry_run else "insertados"
+    _out("=" * _W)
+    _out(f"  RESUMEN BATCH  —  {len(all_results)} repositorios")
+    for repo_id, records in all_results.items():
+        repo_bytes = sum(r.get("size_bytes") or 0 for r in records)
+        _out(f"    {repo_id:<30} {len(records):>5} registros  {_format_bytes(repo_bytes):>10}")
+    _out()
+    _out(f"  Total {action}: {total_files}  —  {_format_bytes(total_bytes)}")
+    if output_path:
+        _out(f"  Guardado en : {output_path}")
+    _out("=" * _W)
+    _out()
+
+
+# ---------------------------------------------------------------------------
+# Data classes
+# ---------------------------------------------------------------------------
 
 @dataclass
 class RepoConfig:
-    """Configuration for a single FTP or HTTP repository.
-
-    Each repo maps to one community in InvenioRDM.
-    """
+    """Configuration for a single FTP or HTTP repository."""
 
     repo_id: str
     host: str
     type: str                        # 'ftp' or 'http'
     community_id: Optional[str] = None
     start_path: str = "/"
-    # FTP credentials
     user: str = "anonymous"
     password: str = ""
     port: int = 21
-    # HTTP options
-    base_url: Optional[str] = None   # full base URL if different from http://{host}
+    base_url: Optional[str] = None
     verify_ssl: bool = False
-    # Record defaults
     publisher: Optional[str] = None
     language: str = "spa"
-    # Safety limit — set to None to process all files
     max_files: Optional[int] = None
-    # When True, build records and save to JSON but do NOT publish to InvenioRDM
     dry_run: bool = False
 
 
-class FTPCollector:
-    """Scans FTP/HTTP repositories and inserts metadata records into InvenioRDM.
+# ---------------------------------------------------------------------------
+# Collector
+# ---------------------------------------------------------------------------
 
-    Files are NOT downloaded. The remote URL is stored as an identifier on each record.
-    """
+class FTPCollector:
+    """Scans FTP/HTTP repositories and inserts metadata records into InvenioRDM."""
 
     def __init__(self, invenio_client: Optional[InvenioClient] = None):
         self.client = invenio_client or InvenioClient()
@@ -57,52 +141,42 @@ class FTPCollector:
     def collect_repo(
         self, config: RepoConfig, output_path: Optional[str] = None
     ) -> List[Dict]:
-        """Scan one repository and insert all records.
+        """Scan one repository and insert all records."""
+        _print_repo_header(config)
 
-        Args:
-            config: Repository configuration.
-            output_path: If provided, save results as JSON to this path.
-
-        Returns:
-            List of result dicts with keys: source_url, invenio_id, title, resource_type.
-        """
-        mode = "dry-run" if config.dry_run else "live"
-        logger.info(
-            f"Starting collection [{mode}] for repo '{config.repo_id}' "
-            f"({config.type}://{config.host})"
-        )
         scanner = self._build_scanner(config)
         results: List[Dict] = []
+        errors = 0
         count = 0
+        current_folder: Optional[str] = None
 
         for entry in scanner.scan(config.start_path):
             if config.max_files is not None and count >= config.max_files:
-                logger.info(f"Reached max_files={config.max_files}, stopping")
+                logger.warning(f"Limite max_files={config.max_files} alcanzado")
                 break
 
+            if entry.folder_path != current_folder:
+                current_folder = entry.folder_path
+                _print_folder_change(current_folder)
+
+            count += 1
             result = self._process_entry(entry, config)
             if result:
                 results.append(result)
-                if config.dry_run:
-                    logger.info(f"[{config.repo_id}][dry-run] {result['source_url']}")
-                else:
-                    logger.info(
-                        f"[{config.repo_id}] {result['source_url']} → {result['invenio_id']}"
-                    )
-            count += 1
-
-        action = "prepared (dry-run)" if config.dry_run else "inserted"
-        logger.info(
-            f"Repo '{config.repo_id}': scanned {count} files, "
-            f"{action} {len(results)} records"
-        )
+                _print_file_ok(count, result)
+            else:
+                errors += 1
+                _print_file_error(count, entry)
 
         total_bytes = sum(r.get("size_bytes") or 0 for r in results)
+        _print_repo_summary(config, count, results, errors, total_bytes, output_path)
+
         if output_path:
             _save_json(
                 {
                     "repo_id": config.repo_id,
                     "total": len(results),
+                    "errors": errors,
                     "total_size_bytes": total_bytes,
                     "total_size": _format_bytes(total_bytes),
                     "records": results,
@@ -115,22 +189,16 @@ class FTPCollector:
     def collect_all(
         self, repos: List[RepoConfig], output_path: Optional[str] = None
     ) -> Dict[str, List[Dict]]:
-        """Collect from multiple repositories sequentially.
-
-        Args:
-            repos: List of repository configurations.
-            output_path: If provided, save the aggregated results as JSON to this path.
-
-        Returns:
-            Mapping repo_id → list of result dicts.
-        """
+        """Collect from multiple repositories sequentially."""
         all_results: Dict[str, List[Dict]] = {}
         for config in repos:
             try:
                 all_results[config.repo_id] = self.collect_repo(config)
             except Exception as e:
-                logger.error(f"Failed to collect repo '{config.repo_id}': {e}")
+                logger.error(f"Fallo en repo '{config.repo_id}': {e}")
                 all_results[config.repo_id] = []
+
+        _print_batch_summary(all_results, output_path, dry_run=any(r.dry_run for r in repos))
 
         if output_path:
             summary = {
@@ -166,10 +234,10 @@ class FTPCollector:
                 repo_id=config.repo_id,
                 verify_ssl=config.verify_ssl,
             )
-        raise ValueError(f"Unknown repo type '{config.type}'. Use 'ftp' or 'http'.")
+        raise ValueError(f"Tipo desconocido '{config.type}'. Usa 'ftp' o 'http'.")
 
     def _process_entry(self, entry: FileEntry, config: RepoConfig) -> Optional[Dict]:
-        """Build a metadata record for one file and optionally publish it to InvenioRDM."""
+        """Build a metadata record for one file and optionally publish to InvenioRDM."""
         try:
             record = build_invenio_record(
                 entry,
@@ -200,7 +268,7 @@ class FTPCollector:
                 return result
 
         except Exception as e:
-            logger.error(f"Failed to process '{entry.path}': {e}")
+            logger.error(f"Error procesando '{entry.name}': {e}")
         return None
 
 
@@ -209,7 +277,6 @@ class FTPCollector:
 # ---------------------------------------------------------------------------
 
 def _format_bytes(n: Optional[int]) -> Optional[str]:
-    """Return a human-readable size string (e.g. '1.2 MB')."""
     if n is None:
         return None
     for unit in ("B", "KB", "MB", "GB", "TB"):
@@ -223,36 +290,11 @@ def _save_json(data: object, path: str) -> None:
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
-    logger.info(f"Output saved to {path}")
+    logger.debug(f"JSON guardado en {path}")
 
 
 def _load_repos_from_json(path: str, dry_run: bool = False) -> List[RepoConfig]:
-    """Load repo configurations from a JSON file.
-
-    Expected format::
-
-        [
-          {
-            "repo_id": "biblioteca-central",
-            "host": "ftp.example.cu",
-            "type": "ftp",
-            "community_id": "biblioteca-central",
-            "user": "anonymous",
-            "password": "",
-            "start_path": "/",
-            "publisher": "Universidad X",
-            "language": "spa",
-            "max_files": 100
-          },
-          {
-            "repo_id": "repositorio-apache",
-            "host": "repo.example.cu",
-            "type": "http",
-            "base_url": "http://repo.example.cu/files/",
-            "community_id": "repositorio-apache"
-          }
-        ]
-    """
+    """Load repo configurations from a JSON file."""
     with open(path, encoding="utf-8") as f:
         raw = json.load(f)
     configs = [RepoConfig(**item) for item in raw]
@@ -267,11 +309,21 @@ def _load_repos_from_json(path: str, dry_run: bool = False) -> List[RepoConfig]:
 # ---------------------------------------------------------------------------
 
 def setup_logging(log_level: str = "INFO") -> None:
-    logging.basicConfig(
-        level=getattr(logging, log_level.upper(), logging.INFO),
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        handlers=[logging.StreamHandler()],
+    """Configure logging with a compact format.
+
+    Display output (progress, summaries) is handled separately via _out()
+    and goes to stderr as plain text.  The logger is reserved for warnings,
+    errors, and optional debug messages.
+    """
+    handler = logging.StreamHandler()
+    handler.setFormatter(
+        logging.Formatter(fmt="%(asctime)s  %(levelname)-7s  %(message)s",
+                          datefmt="%H:%M:%S")
     )
+    root = logging.getLogger()
+    root.setLevel(getattr(logging, log_level.upper(), logging.INFO))
+    root.handlers.clear()
+    root.addHandler(handler)
 
 
 def main() -> None:
@@ -279,53 +331,37 @@ def main() -> None:
 
     parser = argparse.ArgumentParser(
         description=(
-            "Scan FTP/HTTP repositories and insert metadata records into InvenioRDM. "
-            "Files are NOT downloaded — the remote URL is stored on each record. "
-            "Results are saved to a JSON file."
+            "Escanea repositorios FTP/HTTP e inserta los metadatos en InvenioRDM. "
+            "Los ficheros NO se descargan — la URL se guarda como identificador. "
+            "Los resultados se guardan en un fichero JSON."
         )
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    # --- scan sub-command (single repo, ad-hoc) ---
-    scan_cmd = subparsers.add_parser("scan", help="Scan a single repository")
-    scan_cmd.add_argument("--host", required=True, help="FTP hostname or HTTP hostname")
+    # --- scan ---
+    scan_cmd = subparsers.add_parser("scan", help="Escanear un repositorio")
+    scan_cmd.add_argument("--host", required=True)
     scan_cmd.add_argument("--type", choices=["ftp", "http"], default="ftp")
-    scan_cmd.add_argument("--repo-id", default="", help="Repository identifier")
+    scan_cmd.add_argument("--repo-id", default="")
     scan_cmd.add_argument("--community-id", default=None)
     scan_cmd.add_argument("--start-path", default="/")
     scan_cmd.add_argument("--user", default="anonymous")
     scan_cmd.add_argument("--password", default="")
     scan_cmd.add_argument("--port", type=int, default=21)
-    scan_cmd.add_argument("--base-url", default=None, help="Full base URL for HTTP repos")
+    scan_cmd.add_argument("--base-url", default=None)
     scan_cmd.add_argument("--publisher", default=None)
     scan_cmd.add_argument("--language", default="spa")
     scan_cmd.add_argument("--max-files", type=int, default=None)
-    scan_cmd.add_argument(
-        "--output",
-        default=None,
-        help="Path for the JSON output file (default: <repo-id>_<timestamp>.json)",
-    )
-    scan_cmd.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Build records and save to JSON without publishing to InvenioRDM",
-    )
-    scan_cmd.add_argument("--log-level", default="INFO")
+    scan_cmd.add_argument("--output", default=None)
+    scan_cmd.add_argument("--dry-run", action="store_true")
+    scan_cmd.add_argument("--log-level", default="WARNING")
 
-    # --- batch sub-command (JSON config file) ---
-    batch_cmd = subparsers.add_parser("batch", help="Run from a JSON config file")
-    batch_cmd.add_argument("config_file", help="Path to JSON repos config file")
-    batch_cmd.add_argument(
-        "--output",
-        default=None,
-        help="Path for the JSON output file (default: batch_<timestamp>.json)",
-    )
-    batch_cmd.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Build records and save to JSON without publishing to InvenioRDM",
-    )
-    batch_cmd.add_argument("--log-level", default="INFO")
+    # --- batch ---
+    batch_cmd = subparsers.add_parser("batch", help="Ejecutar desde fichero JSON")
+    batch_cmd.add_argument("config_file")
+    batch_cmd.add_argument("--output", default=None)
+    batch_cmd.add_argument("--dry-run", action="store_true")
+    batch_cmd.add_argument("--log-level", default="WARNING")
 
     args = parser.parse_args()
     setup_logging(args.log_level)
@@ -351,17 +387,12 @@ def main() -> None:
             max_files=args.max_files,
             dry_run=args.dry_run,
         )
-        results = collector.collect_repo(config, output_path=output_path)
-        action = "Prepared (dry-run)" if args.dry_run else "Inserted"
-        print(f"\n{action} {len(results)} records. Output: {output_path}")
+        collector.collect_repo(config, output_path=output_path)
 
     elif args.command == "batch":
         output_path = args.output or f"batch_{timestamp}.json"
         repos = _load_repos_from_json(args.config_file, dry_run=args.dry_run)
-        all_results = collector.collect_all(repos, output_path=output_path)
-        total = sum(len(v) for v in all_results.values())
-        action = "prepared (dry-run)" if args.dry_run else "inserted"
-        print(f"\nTotal {action}: {total} records across {len(repos)} repos. Output: {output_path}")
+        collector.collect_all(repos, output_path=output_path)
 
 
 if __name__ == "__main__":
