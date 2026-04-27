@@ -7,6 +7,11 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, List, Optional
 
+from alma_rc.ftp_collector.grobid import (
+    GrobidExtractor,
+    apply_grobid_metadata,
+    is_processable as grobid_processable,
+)
 from alma_rc.ftp_collector.mapper import build_invenio_record
 from alma_rc.ftp_collector.scanner import ApacheHTTPScanner, FileEntry, FTPScanner
 from alma_rc.insert_data.invenio_actions import InvenioClient
@@ -46,8 +51,9 @@ def _print_file_ok(count: int, result: Dict) -> None:
     rtype = (result.get("resource_type") or "other")[:15]
     size  = (result.get("size") or "?").rjust(10)
     title = result.get("title") or result.get("source_url", "")
-    title = title[:42]
-    _out(f"    #{count:04d}  {rtype:<16} {size}  {title}")
+    title = title[:38]
+    tag   = "  [grobid]" if result.get("grobid_enriched") else ""
+    _out(f"    #{count:04d}  {rtype:<16} {size}  {title}{tag}")
 
 
 def _print_file_error(count: int, entry: FileEntry) -> None:
@@ -122,6 +128,9 @@ class RepoConfig:
     language: str = "spa"
     max_files: Optional[int] = None
     dry_run: bool = False
+    # Grobid metadata extraction for text documents
+    use_grobid: bool = False
+    grobid_url: str = "http://localhost:8070"
 
 
 # ---------------------------------------------------------------------------
@@ -144,6 +153,7 @@ class FTPCollector:
         """Scan one repository and insert all records."""
         _print_repo_header(config)
 
+        grobid = self._init_grobid(config)
         scanner = self._build_scanner(config)
         results: List[Dict] = []
         errors = 0
@@ -160,7 +170,7 @@ class FTPCollector:
                 _print_folder_change(current_folder)
 
             count += 1
-            result = self._process_entry(entry, config)
+            result = self._process_entry(entry, config, grobid)
             if result:
                 results.append(result)
                 _print_file_ok(count, result)
@@ -218,6 +228,20 @@ class FTPCollector:
     # Internals
     # ------------------------------------------------------------------
 
+    def _init_grobid(self, config: RepoConfig) -> Optional[GrobidExtractor]:
+        """Return a ready GrobidExtractor, or None if disabled / unavailable."""
+        if not config.use_grobid:
+            return None
+        extractor = GrobidExtractor(base_url=config.grobid_url)
+        if extractor.is_available():
+            logger.debug(f"Grobid disponible en {config.grobid_url}")
+            return extractor
+        logger.warning(
+            f"Grobid activado pero no disponible en {config.grobid_url}. "
+            "Inicia el servicio con: podman-compose up -d grobid"
+        )
+        return None
+
     def _build_scanner(self, config: RepoConfig):
         if config.type == "ftp":
             return FTPScanner(
@@ -236,7 +260,12 @@ class FTPCollector:
             )
         raise ValueError(f"Tipo desconocido '{config.type}'. Usa 'ftp' o 'http'.")
 
-    def _process_entry(self, entry: FileEntry, config: RepoConfig) -> Optional[Dict]:
+    def _process_entry(
+        self,
+        entry: FileEntry,
+        config: RepoConfig,
+        grobid: Optional[GrobidExtractor] = None,
+    ) -> Optional[Dict]:
         """Build a metadata record for one file and optionally publish to InvenioRDM."""
         try:
             record = build_invenio_record(
@@ -246,8 +275,18 @@ class FTPCollector:
                 language=config.language,
             )
             record_dict = json.loads(record.json(exclude_none=True))
-            metadata = record_dict.get("metadata", {})
 
+            # Grobid enrichment for supported document types
+            grobid_enriched = False
+            if grobid and grobid_processable(entry.name):
+                grobid_meta = grobid.extract_from_url(
+                    entry.path, verify_ssl=config.verify_ssl
+                )
+                if grobid_meta:
+                    apply_grobid_metadata(record_dict, grobid_meta)
+                    grobid_enriched = True
+
+            metadata = record_dict.get("metadata", {})
             result = {
                 "source_url": entry.path,
                 "title": metadata.get("title", ""),
@@ -255,6 +294,7 @@ class FTPCollector:
                 "folder_path": entry.folder_path,
                 "size_bytes": entry.size,
                 "size": _format_bytes(entry.size) if entry.size is not None else None,
+                "grobid_enriched": grobid_enriched,
                 "record": record_dict,
             }
 
@@ -354,6 +394,14 @@ def main() -> None:
     scan_cmd.add_argument("--max-files", type=int, default=None)
     scan_cmd.add_argument("--output", default=None)
     scan_cmd.add_argument("--dry-run", action="store_true")
+    scan_cmd.add_argument(
+        "--use-grobid", action="store_true",
+        help="Extraer metadatos de documentos de texto via Grobid",
+    )
+    scan_cmd.add_argument(
+        "--grobid-url", default="http://localhost:8070",
+        help="URL base del servicio Grobid (default: http://localhost:8070)",
+    )
     scan_cmd.add_argument("--log-level", default="WARNING")
 
     # --- batch ---
@@ -386,6 +434,8 @@ def main() -> None:
             language=args.language,
             max_files=args.max_files,
             dry_run=args.dry_run,
+            use_grobid=args.use_grobid,
+            grobid_url=args.grobid_url,
         )
         collector.collect_repo(config, output_path=output_path)
 
