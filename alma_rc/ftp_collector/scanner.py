@@ -5,7 +5,7 @@ import logging
 import re
 from dataclasses import dataclass
 from typing import Iterator, List, Optional
-from urllib.parse import urljoin, urlparse
+from urllib.parse import unquote, urljoin, urlparse
 
 import requests
 from lxml import html
@@ -207,7 +207,7 @@ class ApacheHTTPScanner:
                 continue
             seen.add(href)
 
-            name = href.rstrip("/").split("/")[-1]
+            name = unquote(href.rstrip("/").split("/")[-1])
             if not name:
                 continue
             full_url = urljoin(url, href)
@@ -230,7 +230,7 @@ class ApacheHTTPScanner:
                     continue
                 if href.startswith("/") and not href.startswith(base_path):
                     continue
-                name = href.rstrip("/").split("/")[-1]
+                name = unquote(href.rstrip("/").split("/")[-1])
                 if not name:
                     continue
                 full_url = urljoin(url, href)
@@ -299,7 +299,7 @@ class ApacheHTTPScanner:
             if href.startswith("/") and not href.startswith(base_path):
                 continue
 
-            name = href.rstrip("/").split("/")[-1]
+            name = unquote(href.rstrip("/").split("/")[-1])
             if not name:
                 continue
             full_url = urljoin(url, href)
@@ -368,7 +368,7 @@ class ApacheHTTPScanner:
             href = item.get("href", "")
             if not href:
                 continue
-            name = href.rstrip("/").split("/")[-1]
+            name = unquote(href.rstrip("/").split("/")[-1])
             if not name:
                 continue
 
