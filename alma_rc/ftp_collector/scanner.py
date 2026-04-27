@@ -281,20 +281,26 @@ class ApacheHTTPScanner:
                 yield from self._yield_h5ai_items(items, url, relative_folder)
                 return
 
-        # API blocked or unavailable — parse the server-rendered HTML directly.
+        # API blocked or unavailable — parse the server-rendered HTML.
         logger.debug(f"h5ai API unavailable for {url}, parsing h5ai HTML")
-        yield from self._scan_h5ai_html(url, content, relative_folder)
-
-    def _scan_h5ai_html(
-        self, url: str, content: bytes, relative_folder: str
-    ) -> Iterator[FileEntry]:
-        """Parse h5ai's <ul id='items'> server-rendered listing."""
         tree = html.fromstring(content)
+        li_items = tree.xpath("//ul[@id='items']/li[contains(@class,'item')]")
+        if li_items:
+            yield from self._parse_h5ai_li_items(li_items, url, relative_folder)
+        else:
+            # <ul id="items"> is JS-populated and empty in the initial response.
+            # Fall back to the generic link scanner, which works on whatever
+            # the server rendered (noscript fallback, plain hrefs, etc.).
+            logger.debug(f"h5ai items list empty, using autoindex fallback for {url}")
+            yield from self._scan_apache_autoindex(url, content, relative_folder)
 
-        for li in tree.xpath("//ul[@id='items']/li[contains(@class,'item')]"):
+    def _parse_h5ai_li_items(
+        self, li_items: list, url: str, relative_folder: str
+    ) -> Iterator[FileEntry]:
+        """Yield FileEntry objects from a list of h5ai <li class='item'> elements."""
+        for li in li_items:
             classes = li.get("class", "")
 
-            # Skip the parent-directory navigation entry
             if "folder-parent" in classes:
                 continue
 
@@ -311,7 +317,6 @@ class ApacheHTTPScanner:
 
             full_url = urljoin(url, href)
 
-            # File size from data-bytes attribute on the <span class="size">
             size: Optional[int] = None
             span = li.find(".//span[@class='size']")
             if span is not None:
