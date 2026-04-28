@@ -1,10 +1,8 @@
 """Scanners for FTP servers, Apache AutoIndex and h5ai directory listings."""
 import ftplib
-import json
 import logging
-import re
 from dataclasses import dataclass
-from typing import Iterator, List, Optional
+from typing import Iterator, Optional
 from urllib.parse import unquote, urljoin, urlparse
 
 import requests
@@ -264,40 +262,15 @@ class ApacheHTTPScanner:
     def _scan_h5ai(
         self, url: str, content: bytes, relative_folder: str
     ) -> Iterator[FileEntry]:
-        """Parse an h5ai directory listing.
+        """Parse an h5ai directory listing from its server-rendered HTML.
 
-        Strategy:
-        1. Try the h5ai JSON API (requires PHP access — may be blocked).
-        2. Fall back to parsing the server-rendered <ul id="items"> HTML, which
-           h5ai always emits for non-JS clients.  Each <li class="item file">
-           carries the file href and a <span class="size" data-bytes="N">.
-           Folders have class "item folder"; parent-dir links also have
-           "folder-parent" and are skipped.
+        h5ai pre-renders all items inside <ul id="items"> as <li> elements.
+        Each <li class="item file"> is a file; <li class="item folder"> is a
+        subdirectory.  Parent-dir entries carry the extra "folder-parent" class
+        and are skipped.  An empty items list means the directory is empty.
         """
-        h5ai_root = self._find_h5ai_root(content)
-        if h5ai_root:
-            items = self._fetch_h5ai_json(url, h5ai_root)
-            if items is not None:
-                yield from self._yield_h5ai_items(items, url, relative_folder)
-                return
-
-        # API blocked or unavailable — parse the server-rendered HTML.
-        logger.debug(f"h5ai API unavailable for {url}, parsing h5ai HTML")
         tree = html.fromstring(content)
-        li_items = tree.xpath("//ul[@id='items']/li[contains(@class,'item')]")
-        if li_items:
-            yield from self._parse_h5ai_li_items(li_items, url, relative_folder)
-        # If the items list is empty the directory is either truly empty or h5ai
-        # is serving items via JS only. Either way there are no server-rendered
-        # records to return, so yield nothing. Falling back to the Apache
-        # autoindex parser here would scan h5ai's own HTML template and create
-        # spurious FileEntry records from UI links that are not real files.
-
-    def _parse_h5ai_li_items(
-        self, li_items: list, url: str, relative_folder: str
-    ) -> Iterator[FileEntry]:
-        """Yield FileEntry objects from a list of h5ai <li class='item'> elements."""
-        for li in li_items:
+        for li in tree.xpath("//ul[@id='items']/li[contains(@class,'item')]"):
             classes = li.get("class", "")
 
             if "folder-parent" in classes:
@@ -316,16 +289,14 @@ class ApacheHTTPScanner:
 
             full_url = urljoin(url, href)
 
-            size: Optional[int] = None
-            span = li.find(".//span[@class='size']")
-            if span is not None:
-                db = span.get("data-bytes", "")
-                try:
-                    size = int(db)
-                except (ValueError, TypeError):
-                    pass
-
             if "item file" in classes:
+                size: Optional[int] = None
+                span = li.find(".//span[@class='size']")
+                if span is not None:
+                    try:
+                        size = int(span.get("data-bytes", ""))
+                    except (ValueError, TypeError):
+                        pass
                 yield FileEntry(
                     name=name,
                     path=full_url,
@@ -336,71 +307,3 @@ class ApacheHTTPScanner:
             elif "item folder" in classes:
                 sub = f"{relative_folder}/{name}".lstrip("/")
                 yield from self._scan_url(full_url, sub)
-
-    def _find_h5ai_root(self, content: bytes) -> Optional[str]:
-        """Return the h5ai installation root path (e.g. '/_h5ai'), or None."""
-        snippet = content[:8192].decode("utf-8", errors="ignore")
-        m = re.search(r"(/_h5ai)", snippet)
-        return m.group(1) if m else None
-
-    def _fetch_h5ai_json(self, url: str, h5ai_root: str) -> Optional[List[dict]]:
-        """Request directory items from the h5ai JSON API.
-
-        Tries both known endpoint paths across h5ai versions.
-        """
-        parsed = urlparse(url)
-        origin = f"{parsed.scheme}://{parsed.netloc}"
-        path = parsed.path
-
-        endpoints = [
-            f"{h5ai_root}/server/php/index.php",   # h5ai ≤ 0.28
-            f"{h5ai_root}/public/json.php",         # h5ai ≥ 0.29
-        ]
-        payload = json.dumps({"action": "get", "items": {"href": path, "what": 1}})
-        headers = {"Content-Type": "application/json"}
-
-        for endpoint in endpoints:
-            api_url = urljoin(origin + "/", endpoint.lstrip("/"))
-            try:
-                resp = self._session.post(
-                    api_url, data=payload, headers=headers,
-                    timeout=15, verify=self.verify_ssl,
-                )
-                if resp.status_code == 200:
-                    data = resp.json()
-                    if "items" in data:
-                        logger.info(f"h5ai JSON API answered at {api_url}")
-                        return data["items"]
-            except Exception as e:
-                logger.debug(f"h5ai API {api_url} failed: {e}")
-
-        return None
-
-    def _yield_h5ai_items(
-        self, items: List[dict], base_url: str, relative_folder: str
-    ) -> Iterator[FileEntry]:
-        """Yield FileEntry objects from h5ai JSON API response items."""
-        parsed = urlparse(base_url)
-        origin = f"{parsed.scheme}://{parsed.netloc}"
-
-        for item in items:
-            href = item.get("href", "")
-            if not href:
-                continue
-            name = unquote(href.rstrip("/").split("/")[-1])
-            if not name:
-                continue
-
-            full_url = urljoin(origin + "/", href.lstrip("/"))
-            size: Optional[int] = item.get("size")  # None for directories
-
-            is_folder = href.endswith("/")
-            if is_folder:
-                sub = f"{relative_folder}/{name}".lstrip("/")
-                yield from self._scan_url(full_url, sub)
-            else:
-                yield FileEntry(
-                    name=name, path=full_url,
-                    folder_path=relative_folder, size=size,
-                    repo_id=self.repo_id,
-                )
