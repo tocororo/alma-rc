@@ -265,21 +265,65 @@ class ApacheHTTPScanner:
     ) -> Iterator[FileEntry]:
         """Parse an h5ai directory listing from its server-rendered HTML.
 
-        Primary source: <ul id="items"> — h5ai pre-renders files and folders as
-        <li class="item file"> / <li class="item folder"> when PHP renders the page.
+        Three sources are tried in order:
 
-        Fallback: when the items list is empty (server uses client-side JS loading),
-        h5ai still pre-renders the navigation tree in <div id="tree">.  The
-        current (active) directory's immediate subdirectories appear inside its
-        <div class="content"> child.  We follow those links to recurse deeper.
+        1. <ul id="items"> — populated server-side by PHP when pre-rendering is
+           enabled.  Each <li class="item file"> is a record; <li class="item
+           folder"> triggers recursion.
+
+        2. <div id="fallback"> — h5ai always pre-renders a plain HTML table here
+           for non-JS clients (h5ai v0.29+).  Folders have href ending in "/";
+           files do not.  Sizes are expressed as "N KB" / "N MB" etc.
+
+        3. <div id="tree"> — navigation panel.  Only exposes the immediate
+           subdirectories of the current active directory.  No file information.
+           Used as a last resort when the server renders neither (1) nor (2).
         """
         doc = html.fromstring(content)
+
+        # --- Source 1: <ul id="items"> ---
         li_items = doc.xpath("//ul[@id='items']/li[contains(@class,'item')]")
         logger.debug(f"h5ai items encontrados: {len(li_items)} en {url}")
+        if li_items:
+            yield from self._parse_h5ai_items(li_items, url, relative_folder)
+            return
 
+        # --- Source 2: <div id="fallback"> noscript table ---
+        fb_rows = doc.xpath("//div[@id='fallback']//tr[.//td[@class='fb-n']]")
+        if fb_rows:
+            logger.debug(f"h5ai fallback table: {len(fb_rows)} filas en {url}")
+            yield from self._parse_h5ai_fallback(fb_rows, url, relative_folder)
+            return
+
+        # --- Source 3: <div id="tree"> navigation panel ---
+        tree_hrefs = doc.xpath(
+            "//div[@id='tree']"
+            "//div[contains(@class,'active') and contains(@class,'folder')]"
+            "/div[@class='content']"
+            "/div[contains(@class,'item') and contains(@class,'folder')]"
+            "/a/@href"
+        )
+        if tree_hrefs:
+            logger.debug(
+                f"h5ai: usando árbol de navegación "
+                f"({len(tree_hrefs)} subcarpetas) en {url}"
+            )
+            for href in tree_hrefs:
+                name = unquote(href.rstrip("/").split("/")[-1])
+                if not name:
+                    continue
+                full_url = urljoin(url, href)
+                sub = f"{relative_folder}/{name}".lstrip("/")
+                yield from self._scan_url(full_url, sub)
+        else:
+            logger.debug(f"h5ai: directorio vacío en {url}")
+
+    def _parse_h5ai_items(
+        self, li_items: list, url: str, relative_folder: str
+    ) -> Iterator[FileEntry]:
+        """Yield from <ul id="items"> pre-rendered entries."""
         for li in li_items:
             classes = li.get("class", "")
-
             if "folder-parent" in classes:
                 continue
 
@@ -315,36 +359,46 @@ class ApacheHTTPScanner:
                 sub = f"{relative_folder}/{name}".lstrip("/")
                 yield from self._scan_url(full_url, sub)
 
-        if li_items:
-            return
+    def _parse_h5ai_fallback(
+        self, fb_rows: list, url: str, relative_folder: str
+    ) -> Iterator[FileEntry]:
+        """Yield from h5ai's <div id="fallback"> noscript table rows.
 
-        # items list empty — fall back to the tree panel.
-        # h5ai always pre-renders the active directory's immediate subdirectories
-        # inside: #tree > .active.folder > .content > .folder > a[href]
-        tree_hrefs = doc.xpath(
-            "//div[@id='tree']"
-            "//div[contains(@class,'active') and contains(@class,'folder')]"
-            "/div[@class='content']"
-            "/div[contains(@class,'item') and contains(@class,'folder')]"
-            "/a/@href"
-        )
-        if tree_hrefs:
-            logger.debug(
-                f"h5ai items vacíos, explorando {len(tree_hrefs)} "
-                f"subcarpetas del árbol en {url}"
-            )
-            for href in tree_hrefs:
-                name = unquote(href.rstrip("/").split("/")[-1])
-                if not name:
-                    continue
-                full_url = urljoin(url, href)
+        Each row has: fb-i (icon), fb-n (name/link), fb-d (date), fb-s (size).
+        Folders have href ending in '/'; files do not.
+        Sizes are human-readable strings like '2964984 KB' or '1.5 MB'.
+        """
+        for tr in fb_rows:
+            name_td = tr.find(".//td[@class='fb-n']")
+            if name_td is None:
+                continue
+            a_elem = name_td.find(".//a")
+            if a_elem is None:
+                continue
+            href = a_elem.get("href", "")
+            if not href:
+                continue
+
+            name = unquote(href.rstrip("/").split("/")[-1])
+            if not name:
+                continue
+
+            full_url = urljoin(url, href)
+
+            if href.endswith("/"):
                 sub = f"{relative_folder}/{name}".lstrip("/")
                 yield from self._scan_url(full_url, sub)
-        else:
-            import lxml.etree as etree
-            body = doc.find(".//body")
-            body_html = (
-                etree.tostring(body, encoding="unicode")[:2000] if body is not None
-                else content[:2000].decode("utf-8", errors="ignore")
-            )
-            logger.debug(f"h5ai: sin items ni árbol en {url} — HTML:\n{body_html}")
+            else:
+                size_td = tr.find(".//td[@class='fb-s']")
+                size: Optional[int] = None
+                if size_td is not None:
+                    # Sizes arrive as "2964984 KB", "1.5 MB", "0 KB", etc.
+                    # Strip trailing 'B' so _parse_size_str handles the suffix.
+                    size = _parse_size_str(size_td.text_content().rstrip("bB"))
+                yield FileEntry(
+                    name=name,
+                    path=full_url,
+                    folder_path=relative_folder,
+                    size=size,
+                    repo_id=self.repo_id,
+                )
