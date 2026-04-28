@@ -265,14 +265,18 @@ class ApacheHTTPScanner:
     ) -> Iterator[FileEntry]:
         """Parse an h5ai directory listing from its server-rendered HTML.
 
-        h5ai pre-renders all items inside <ul id="items"> as <li> elements.
-        Each <li class="item file"> is a file; <li class="item folder"> is a
-        subdirectory.  Parent-dir entries carry the extra "folder-parent" class
-        and are skipped.  An empty items list means the directory is empty.
+        Primary source: <ul id="items"> — h5ai pre-renders files and folders as
+        <li class="item file"> / <li class="item folder"> when PHP renders the page.
+
+        Fallback: when the items list is empty (server uses client-side JS loading),
+        h5ai still pre-renders the navigation tree in <div id="tree">.  The
+        current (active) directory's immediate subdirectories appear inside its
+        <div class="content"> child.  We follow those links to recurse deeper.
         """
-        tree = html.fromstring(content)
-        li_items = tree.xpath("//ul[@id='items']/li[contains(@class,'item')]")
+        doc = html.fromstring(content)
+        li_items = doc.xpath("//ul[@id='items']/li[contains(@class,'item')]")
         logger.debug(f"h5ai items encontrados: {len(li_items)} en {url}")
+
         for li in li_items:
             classes = li.get("class", "")
 
@@ -310,3 +314,31 @@ class ApacheHTTPScanner:
             elif "item folder" in classes:
                 sub = f"{relative_folder}/{name}".lstrip("/")
                 yield from self._scan_url(full_url, sub)
+
+        if li_items:
+            return
+
+        # items list empty — fall back to the tree panel.
+        # h5ai always pre-renders the active directory's immediate subdirectories
+        # inside: #tree > .active.folder > .content > .folder > a[href]
+        tree_hrefs = doc.xpath(
+            "//div[@id='tree']"
+            "//div[contains(@class,'active') and contains(@class,'folder')]"
+            "/div[@class='content']"
+            "/div[contains(@class,'item') and contains(@class,'folder')]"
+            "/a/@href"
+        )
+        if tree_hrefs:
+            logger.debug(
+                f"h5ai items vacíos, explorando {len(tree_hrefs)} "
+                f"subcarpetas del árbol en {url}"
+            )
+            for href in tree_hrefs:
+                name = unquote(href.rstrip("/").split("/")[-1])
+                if not name:
+                    continue
+                full_url = urljoin(url, href)
+                sub = f"{relative_folder}/{name}".lstrip("/")
+                yield from self._scan_url(full_url, sub)
+        else:
+            logger.debug(f"h5ai: directorio vacío en {url}")
