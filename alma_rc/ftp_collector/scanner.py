@@ -341,4 +341,10 @@ class ApacheHTTPScanner:
                 sub = f"{relative_folder}/{name}".lstrip("/")
                 yield from self._scan_url(full_url, sub)
         else:
-            logger.debug(f"h5ai: directorio vacío en {url}")
+            import lxml.etree as etree
+            tree_div = doc.find(".//div[@id='tree']")
+            tree_html = (
+                etree.tostring(tree_div, encoding="unicode") if tree_div is not None
+                else "<div id='tree'> NO ENCONTRADO"
+            )
+            logger.debug(f"h5ai: directorio vacío en {url} — tree panel:\n{tree_html}")
