@@ -173,6 +173,7 @@ class ApacheHTTPScanner:
         if not resp:
             return
         listing_type = _detect_listing_type(resp.content)
+        logger.debug(f"[{listing_type}] {url} ({len(resp.content)} bytes)")
         if listing_type == "h5ai":
             yield from self._scan_h5ai(url, resp.content, relative_folder)
         else:
@@ -270,7 +271,9 @@ class ApacheHTTPScanner:
         and are skipped.  An empty items list means the directory is empty.
         """
         tree = html.fromstring(content)
-        for li in tree.xpath("//ul[@id='items']/li[contains(@class,'item')]"):
+        li_items = tree.xpath("//ul[@id='items']/li[contains(@class,'item')]")
+        logger.debug(f"h5ai items encontrados: {len(li_items)} en {url}")
+        for li in li_items:
             classes = li.get("class", "")
 
             if "folder-parent" in classes:
