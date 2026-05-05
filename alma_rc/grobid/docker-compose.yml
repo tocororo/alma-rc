@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  grobid:
+    image: lfoppiano/grobid:0.8.0
+    container_name: grobid-server
+    ports:
+      - "8070:8070"
+    environment:
+      - JAVA_OPTS=-Xms2g -Xmx3g -XX:+UseG1GC
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8070/api/isalive"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
