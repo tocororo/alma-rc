@@ -16,7 +16,9 @@ from lxml import etree
 logger = logging.getLogger(__name__)
 
 # Extensions that Grobid can process (PDF is best supported; others via conversion)
-SUPPORTED_EXTENSIONS = {".pdf", ".doc", ".docx", ".odt", ".rtf"}
+# SUPPORTED_EXTENSIONS = {".pdf", ".doc", ".docx", ".odt", ".rtf"}
+SUPPORTED_EXTENSIONS = {".pdf"}
+
 
 # TEI XML namespace used in all Grobid responses
 _TEI_NS = "http://www.tei-c.org/ns/1.0"
@@ -91,6 +93,7 @@ class GrobidExtractor:
             with open(file_path, "rb") as f:
                 resp = self._session.post(
                     f"{self.base_url}/api/processHeaderDocument",
+                    headers={"Accept": "application/xml"},
                     files={
                         "input": (
                             os.path.basename(file_path),
