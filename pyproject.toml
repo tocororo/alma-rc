@@ -32,6 +32,7 @@ dependencies = [
     "idutils >=1.5.0,<2.0.0",
     "certifi >=2025.7.14",
     "chardet >=3.0.4,<6.0.0",
+    "tqdm (>=4.67.3,<5.0.0)",
 ]
 
 [project.optional-dependencies]
@@ -51,6 +52,7 @@ Issues = "https://github.com/tocororo/alma-rc/issues"
 
 [project.scripts]
 alma-rc = "alma_rc.insert_data.import:main"
+alma-rc-ftp = "alma_rc.ftp_collector.collector:main"
 
 [tool.black]
 line-length = 88

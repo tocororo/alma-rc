@@ -65,6 +65,59 @@ class InvenioClient:
         logger.error(f"Failed to create or retrieve draft for record {record_id}")
         return None
 
+    def delete_all_drafts(self) -> int:
+        """Delete every unpublished draft from InvenioRDM.
+
+        Uses /api/user/records?is_published=false to target only drafts,
+        leaving published records untouched.
+
+        Returns:
+            Number of drafts successfully deleted.
+        """
+        logger.warning("Starting deletion of all drafts")
+
+        drafts = self._fetch_all_drafts()
+        if not drafts:
+            logger.info("No drafts found")
+            return 0
+
+        logger.info(f"Found {len(drafts)} drafts to delete")
+        deleted = 0
+
+        for draft in drafts:
+            record_id = draft.get("id")
+            if not record_id:
+                continue
+            self._delete_draft(record_id)
+            deleted += 1
+
+        logger.info(f"Deleted {deleted} drafts")
+        return deleted
+
+    def _fetch_all_drafts(self) -> List[Dict]:
+        """Fetch all unpublished drafts owned by the authenticated user."""
+        drafts: List[Dict] = []
+        page = 1
+
+        while True:
+            response = self._make_request(
+                "GET",
+                "/api/user/records",
+                params={"is_published": "false", "size": 100, "page": page},
+            )
+            if not response:
+                break
+
+            data = response.json()
+            hits = data.get("hits", {}).get("hits", [])
+            drafts.extend(hits)
+
+            if len(drafts) >= data.get("hits", {}).get("total", 0):
+                break
+            page += 1
+
+        return drafts
+
     def delete_all_records_and_drafts(self) -> None:
         """Delete all records and drafts from InvenioRDM instance."""
         logger.warning("Starting deletion of all records and drafts")
@@ -295,6 +348,11 @@ class InvenioClient:
 
 # Global client instance for backward compatibility
 _client = InvenioClient()
+
+
+def delete_all_drafts() -> int:
+    """Backward compatibility wrapper."""
+    return _client.delete_all_drafts()
 
 
 def delete_all_records_and_drafts():

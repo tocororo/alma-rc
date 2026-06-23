@@ -1,0 +1,26 @@
+# Servicios de infraestructura para alma-rc.
+# Uso con Podman:
+#   podman-compose up -d grobid
+#   podman-compose down
+#
+# Uso con Docker:
+#   docker compose up -d grobid
+
+services:
+
+  grobid:
+    image: lfoppiano/grobid:0.8.1
+    container_name: alma-rc-grobid
+    ports:
+      - "8070:8070"   # REST API
+      - "8071:8071"   # Admin UI
+    environment:
+      # Memoria máxima para la JVM — ajustar según RAM disponible
+      JAVA_OPTS: "-Xmx4g -Xms1g"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8070/api/isalive"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s   # Grobid tarda en cargar los modelos ML
